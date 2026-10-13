@@ -1,0 +1,8 @@
+# Copy to backend.hcl (git-ignored) and put YOUR bucket name:
+#   cp backend.hcl.example backend.hcl
+#   gcloud storage buckets create gs://$PROJECT_ID-tfstate --location=us-central1
+#   tofu init -backend-config=backend.hcl      (or terraform init ...)
+bucket = "my-project-id-tfstate"
+
+# Optional: act as the tofu-deployer service account (scripts/create-tofu-sa.sh)
+# impersonate_service_account = "tofu-deployer@my-project-id.iam.gserviceaccount.com"

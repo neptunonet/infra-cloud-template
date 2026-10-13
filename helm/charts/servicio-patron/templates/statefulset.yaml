@@ -1,0 +1,61 @@
+# StatefulSet, not Deployment: each replica gets its OWN persistent volume
+# (class 5 lesson). A Deployment's PVC would be shared/racy across pods.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "servicio-patron.fullname" . }}
+  labels:
+    app: {{ include "servicio-patron.fullname" . }}
+spec:
+  serviceName: {{ include "servicio-patron.fullname" . }}
+  {{- if not .Values.autoscaling.enabled }}
+  # With the HPA on, the HPA owns spec.replicas: setting it here would make
+  # every `helm upgrade` reset the replicas the HPA chose. A fresh install
+  # starts with 1 pod and the HPA raises it to minReplicas within seconds.
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "servicio-patron.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "servicio-patron.fullname" . }}
+    spec:
+      containers:
+        - name: servicio-patron
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: DATA_DIR
+              value: /data
+            - name: PORT
+              value: "{{ .Values.service.port }}"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.persistence.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

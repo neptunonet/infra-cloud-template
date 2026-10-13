@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pow.fullname" . }}
+  labels:
+    app: {{ include "pow.fullname" . }}
+spec:
+  serviceName: {{ include "pow.fullname" . }}-headless
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "pow.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "pow.fullname" . }}
+    spec:
+      containers:
+        - name: pow
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: DATA_DIR
+              value: /data
+            - name: PORT
+              value: "{{ .Values.service.port }}"
+            # Peer URLs. By default every pod of this StatefulSet by its stable
+            # DNS name (headless service), self included. TODO(TF): use them.
+            - name: PEERS
+              {{- if .Values.peers }}
+              value: {{ join "," .Values.peers | quote }}
+              {{- else }}
+              value: "{{ range $i := until (int .Values.replicaCount) }}{{ if $i }},{{ end }}http://{{ include "pow.fullname" $ }}-{{ $i }}.{{ include "pow.fullname" $ }}-headless:{{ $.Values.service.port }}{{ end }}"
+              {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.persistence.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

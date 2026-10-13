@@ -1,0 +1,77 @@
+# Blockchain example: Anvil (Foundry's local dev chain) plus the servicio patron,
+# used from class 3 onward as the "stack de desarrollo blockchain" artifact.
+#
+#   docker compose -f compose/docker-compose.anvil.yml up -d --build --wait
+#   docker compose -f compose/docker-compose.anvil.yml exec anvil cast block-number
+#   docker compose -f compose/docker-compose.anvil.yml down      # keeps the chain
+#   docker compose -f compose/docker-compose.anvil.yml down -v   # ALSO deletes it
+#
+# How the chain survives `down` + `up` (same lesson as class 1's persistent disk):
+#   --state FILE        loads FILE on boot and writes it back on a clean stop.
+#   --state-interval 5  ALSO writes it every 5 s, so a kill or a crash loses
+#                       at most the last 5 seconds.
+#   entrypoint anvil    makes anvil PID 1, so it receives the stop signal
+#                       (the image's default `sh -c` does not forward it).
+#   anvil-state-init    Anvil runs as uid 1000 but a new named volume belongs
+#                       to root: without this one-shot chown Anvil cannot write
+#                       the file and the chain resets with NO error in the logs.
+#
+# FOUNDRY_TAG pins the Foundry version (never float on :latest).
+# APP_PORT / ANVIL_PORT change the ports on your laptop if they are taken.
+name: anvil-stack
+
+services:
+  anvil-state-init:
+    image: busybox:1.36
+    command: ["sh", "-c", "chown -R 1000:1000 /state"]
+    volumes:
+      - anvil-state:/state
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:${FOUNDRY_TAG:-stable}
+    entrypoint: ["anvil"]
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--state"
+      - "/state/anvil-state.json"
+      - "--state-interval"
+      - "5"
+    ports:
+      - "${ANVIL_PORT:-8545}:8545"
+    volumes:
+      - anvil-state:/state
+    depends_on:
+      anvil-state-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+  servicio-patron:
+    build:
+      context: ../app
+    image: app:local
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DATA_DIR: /data
+      PORT: "8080"
+    volumes:
+      - servicio-patron-data:/data
+    depends_on:
+      anvil:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  anvil-state:
+  servicio-patron-data:

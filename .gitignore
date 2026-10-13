@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.joblib
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.plan
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+.env
+tfplan
+backend.hcl
+# Lock files differ between Terraform and OpenTofu (different registries);
+# the course accepts both tools, so each laptop/CI run generates its own.
+.terraform.lock.hcl
+# Class 1 bind-mount data dir (docker run -v "$PWD/datos:/data").
+datos/

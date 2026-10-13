@@ -1,0 +1,35 @@
+// Class 6: log agent. Install with the grafana/alloy chart (tested with 1.13.0):
+//   helm upgrade --install alloy grafana/alloy --version 1.13.0 -n observability \
+//     --set controller.type=deployment \
+//     --set-file alloy.configMap.content=observability/alloy-logs.alloy --wait
+//
+// Reads the logs of every pod through the Kubernetes API and pushes them to Loki.
+// One replica (Deployment): with loki.source.kubernetes a DaemonSet would duplicate lines.
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+discovery.relabel "pods" {
+  targets = discovery.kubernetes.pods.targets
+
+  // The pod label `app` becomes the Loki label `app`.
+  rule {
+    source_labels = ["__meta_kubernetes_pod_label_app"]
+    target_label  = "app"
+  }
+  rule {
+    source_labels = ["__meta_kubernetes_namespace"]
+    target_label  = "namespace"
+  }
+}
+
+loki.source.kubernetes "pods" {
+  targets    = discovery.relabel.pods.output
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki-gateway/loki/api/v1/push"
+  }
+}

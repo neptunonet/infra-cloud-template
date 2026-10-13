@@ -1,0 +1,40 @@
+# k6 as a Kubernetes Job: the load comes from INSIDE the cluster and hits the
+# Service by name, so it is spread over every replica the HPA adds (a
+# kubectl port-forward pins all traffic to one pod).
+#
+#   kubectl create configmap k6-script --from-file=loadtest/k6-script.js \
+#     --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl delete job k6 --ignore-not-found
+#   kubectl apply -f loadtest/k6-job.yaml        # edit TARGET / SLEEP below first
+#   kubectl logs -f job/k6
+#   kubectl get hpa -w                           # in another terminal
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:2.3.0
+          args: ["run", "/scripts/k6-script.js"]
+          env:
+            - name: TARGET # model | servicio-patron
+              value: model
+            - name: SLEEP # 0.05 for the model
+              value: "0.05"
+            - name: MODEL_URL
+              value: http://model:8081
+            - name: SERVICIO_PATRON_URL
+              value: http://servicio-patron:8080
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: k6-script

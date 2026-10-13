@@ -1,0 +1,57 @@
+# Class 6: values for the grafana/loki Helm chart in single binary mode with
+# filesystem storage (no object storage needed for a classroom setup).
+# Tested with chart 7.3.0 (Loki 3.6):
+#   helm repo add grafana https://grafana.github.io/helm-charts
+#   helm upgrade --install loki grafana/loki --version 7.3.0 -n observability \
+#     -f observability/loki-values.yaml --wait
+# Logs are shipped by Alloy (observability/alloy-logs.alloy) and Grafana reads
+# them through the Loki data source declared in kube-prometheus-stack-values.yaml.
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  # Required by the chart since 6.x: without it the install is rejected.
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    size: 5Gi
+
+# Single binary mode only: the simple-scalable targets must be at zero.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Without these the chart adds memcached pods that request about 10 GiB of RAM.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false

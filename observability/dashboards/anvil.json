@@ -1,0 +1,19 @@
+{
+  "title": "Anvil dev chain",
+  "uid": "anvil",
+  "tags": ["catedra", "infra-cloud-template", "blockchain"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Block height (via anvil-exporter)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "anvil_block_number", "legendFormat": "block height" }
+      ]
+    }
+  ]
+}

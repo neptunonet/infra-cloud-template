@@ -1,0 +1,19 @@
+# Copy to dev.tfvars (git-ignored) and fill in YOUR values:
+#   cp dev.tfvars.example dev.tfvars
+project_id = "my-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# Class 2, first part: leave it commented -> the VM serves nginx on port 80.
+# Class 2, second part (lab Part 2) onward: the servicio patron image -> 8080.
+# servicio_patron_image = "us-central1-docker.pkg.dev/my-project-id/infra-cloud-template/app:v1"
+
+# Spot VM (cheap, GCP may stop it at any time and the VM loses its IP).
+# Default true in dev. Set false for a live demo or a long session.
+# spot = false
+
+# Class 5 onward (costs money while it exists):
+# enable_gke = true
+
+# Who can reach app_port on the VM (default: anyone). Narrow it for an RPC:
+# app_source_ranges = ["<your-ip>/32"]

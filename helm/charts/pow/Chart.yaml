@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pow
+description: Baseline - PoW node(s) as a StatefulSet with one disk each and a headless service for peer discovery. Multi-node consensus is your TF.
+type: application
+version: 0.3.0
+appVersion: "0.1.0"

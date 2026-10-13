@@ -1,0 +1,41 @@
+# A plain Deployment (not StatefulSet): the model has no state of its own,
+# the weights are baked into the image at build time (see model/train.py).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "model.fullname" . }}
+  labels:
+    app: {{ include "model.fullname" . }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  # With the HPA on, the HPA owns spec.replicas: setting it here would make
+  # every `helm upgrade` reset the replicas the HPA chose. A fresh install
+  # starts with 1 pod and the HPA raises it to minReplicas within seconds.
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "model.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "model.fullname" . }}
+    spec:
+      containers:
+        - name: model
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

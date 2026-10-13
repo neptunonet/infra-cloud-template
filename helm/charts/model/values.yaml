@@ -1,0 +1,29 @@
+# Default values for the model chart, written for GKE.
+#   GKE:        --set image.repository=$AR/model --set image.tag=<sha or vX.Y.Z>
+#   k3s / k3d:  -f helm/charts/model/values-k3s.yaml
+# Install it with the release name "model" so the names in the docs match.
+image:
+  # Artifact Registry path: <REGION>-docker.pkg.dev/<PROJECT_ID>/infra-cloud-template/model
+  repository: model
+  tag: v1
+  pullPolicy: IfNotPresent
+
+# Only used when autoscaling.enabled=false (with the HPA on, the HPA decides).
+replicaCount: 2
+
+service:
+  port: 8081
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 60

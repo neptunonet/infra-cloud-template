@@ -1,0 +1,71 @@
+# Class 6: one ServiceMonitor per class Service. Prometheus picks up every
+# ServiceMonitor (serviceMonitorSelectorNilUsesHelmValues: false in
+# kube-prometheus-stack-values.yaml), so no `release:` label is needed.
+# Apply with:
+#   kubectl apply -f observability/servicemonitors.yaml
+#
+# They select the fixed label app.kubernetes.io/name that every chart puts on
+# its Service, so they work whatever release name you used, in any namespace.
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: servicio-patron
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: servicio-patron
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pow
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pow
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: model
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: model
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+# Anvil does not expose Prometheus metrics natively: it speaks JSON-RPC.
+# The sidecar below is a tiny script that polls eth_blockNumber and turns it
+# into a Prometheus gauge, kept as simple as possible on purpose.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: anvil-exporter
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: anvil-exporter
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

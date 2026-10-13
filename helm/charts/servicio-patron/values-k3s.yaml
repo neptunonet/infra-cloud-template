@@ -1,0 +1,10 @@
+# Overrides for a local k3s / k3d cluster. The image is built on your laptop
+# (make build) and copied into the cluster (make k3d-images): it is never pulled.
+image:
+  repository: app
+  tag: local
+  pullPolicy: Never # ErrImageNeverPull = you forgot `make k3d-images`
+
+persistence:
+  storageClassName: local-path # the only StorageClass k3s ships
+  size: 256Mi

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "servicio-patron.fullname" . }}
+  labels:
+    app: {{ include "servicio-patron.fullname" . }}
+    # Fixed label (does not depend on the release name): the ServiceMonitors
+    # in observability/servicemonitors.yaml select on it.
+    app.kubernetes.io/name: servicio-patron
+spec:
+  selector:
+    app: {{ include "servicio-patron.fullname" . }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      name: http

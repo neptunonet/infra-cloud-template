@@ -1,0 +1,12 @@
+# Overrides for a local k3s / k3d cluster. Anvil's own image comes from ghcr.io
+# (do NOT set image.tag here); only the exporter image is local.
+persistence:
+  storageClassName: local-path
+  size: 256Mi
+
+exporter:
+  enabled: false # class 6: make k3d-images, then --set exporter.enabled=true
+  image:
+    repository: anvil-exporter
+    tag: local
+    pullPolicy: Never

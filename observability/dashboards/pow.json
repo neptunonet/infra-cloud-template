@@ -1,0 +1,46 @@
+{
+  "title": "Mini PoW baseline",
+  "uid": "pow",
+  "tags": [
+    "catedra",
+    "infra-cloud-template",
+    "blockchain"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Block height per node",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "pow_block_height",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "TODO(TF): your panels",
+      "type": "text",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "The baseline only exports `pow_block_height`.\n\nTODO(TF): export and chart what proves your network works: peers per node, mining time, sync results, forks, mempool size..."
+      }
+    }
+  ]
+}

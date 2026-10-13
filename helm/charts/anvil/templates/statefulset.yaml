@@ -1,0 +1,71 @@
+# Same lesson as the class-1 VM demo, on Kubernetes: the pod is disposable,
+# /state/anvil-state.json on the PVC is the source of truth.
+# Anvil is a single dev node: replicas stays at 1 on purpose.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "anvil.fullname" . }}
+  labels:
+    app: {{ include "anvil.fullname" . }}
+spec:
+  serviceName: {{ include "anvil.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "anvil.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "anvil.fullname" . }}
+    spec:
+      securityContext:
+        # Anvil runs as uid 1000. Without fsGroup a root-owned volume cannot be
+        # written and the chain silently resets on every restart.
+        fsGroup: 1000
+      containers:
+        - name: anvil
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["anvil"]
+          args:
+            - "--host"
+            - "0.0.0.0"
+            # Load this file at start and write it back on a clean stop...
+            - "--state"
+            - "/state/anvil-state.json"
+            # ...and ALSO every N seconds, so an OOM kill or a node crash loses
+            # at most N seconds of blocks.
+            - "--state-interval"
+            - "{{ .Values.stateInterval }}"
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 2
+          volumeMounts:
+            - name: state
+              mountPath: /state
+        {{- if .Values.exporter.enabled }}
+        - name: anvil-exporter
+          image: "{{ .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag }}"
+          imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
+          env:
+            - name: RPC_URL
+              value: "http://localhost:{{ .Values.service.port }}"
+            - name: PORT
+              value: "{{ .Values.exporter.port }}"
+          ports:
+            - containerPort: {{ .Values.exporter.port }}
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.persistence.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

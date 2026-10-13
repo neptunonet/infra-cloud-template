@@ -1,0 +1,6 @@
+# Overrides for a local k3s / k3d cluster. The model needs no PVC (the weights
+# are baked into the image), so only the image changes.
+image:
+  repository: model
+  tag: local
+  pullPolicy: Never # ErrImageNeverPull = you forgot `make k3d-images`

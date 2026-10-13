@@ -1,0 +1,126 @@
+# Class 8 (caso integrador): Terraform (network + GKE) and then the Helm
+# charts, with an image tag that ci.yml already pushed. Manual trigger only:
+#   Actions > deploy > Run workflow > env=dev, image_tag=<git sha or vX.Y.Z>, charts=<the charts your lab asks for>
+#
+# Prerequisites (docs/clase-08.md has the commands):
+#   - the tfstate bucket gs://<GCP_PROJECT_ID>-tfstate exists;
+#   - repository variables GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER and
+#     GCP_DEPLOY_SERVICE_ACCOUNT (or GCP_SERVICE_ACCOUNT); optional GCP_REGION
+#     (default us-central1), GCP_ZONE (default us-central1-a),
+#     AR_REPOSITORY (default infra-cloud-template);
+#   - that service account can run Terraform and talk to GKE (roles
+#     compute.admin, container.admin, artifactregistry.admin,
+#     iam.serviceAccountUser and storage.objectAdmin on the bucket). The class-4
+#     ci-artifact-writer account (artifactregistry.writer only) is NOT enough.
+#   - GitHub Environments named dev and prod. A required reviewer on them is
+#     the manual approval gate, but it needs a public repo (or a paid plan).
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Terraform env (dev or prod)"
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+      image_tag:
+        description: "Image tag pushed by ci.yml: the full git sha or vX.Y.Z (never latest)"
+        required: true
+        type: string
+      charts:
+        description: "Charts to deploy (space separated, those missing in helm/charts are skipped). Default: servicio-patron."
+        required: false
+        default: "servicio-patron"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  ZONE: ${{ vars.GCP_ZONE || 'us-central1-a' }}
+  AR_REPO: ${{ vars.AR_REPOSITORY || 'infra-cloud-template' }}
+  TF_ENV: ${{ inputs.env }}
+  IMAGE_TAG: ${{ inputs.image_tag }}
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }} # manual-approval gate (if your plan allows it)
+    defaults:
+      run:
+        working-directory: terraform/envs/${{ inputs.env }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check inputs and variables
+        run: |
+          [ -n "$PROJECT_ID" ] || { echo "::error::repository variable GCP_PROJECT_ID is empty"; exit 1; }
+          case "$IMAGE_TAG" in
+            latest|"") echo "::error::image_tag must be a git sha or vX.Y.Z pushed by ci.yml"; exit 1 ;;
+          esac
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: terraform init
+        run: terraform init -input=false -backend-config="bucket=${PROJECT_ID}-tfstate"
+
+      - name: terraform plan
+        run: |
+          terraform plan -input=false -out=tfplan \
+            -var="project_id=$PROJECT_ID" \
+            -var="region=$REGION" \
+            -var="zone=$ZONE" \
+            -var="enable_gke=true" \
+            -var="servicio_patron_image=$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/app:$IMAGE_TAG"
+
+      # Applies exactly the plan above (the reviewer of the environment, if
+      # any, approved this run before the job started).
+      - name: terraform apply
+        run: terraform apply -input=false tfplan
+
+  helm:
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.env }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: infra-cloud-${{ inputs.env }}-gke
+          location: ${{ env.ZONE }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - uses: azure/setup-helm@v4
+
+      - name: helm upgrade --install
+        env:
+          CHARTS: ${{ inputs.charts }}
+        run: |
+          for chart in $CHARTS; do
+            [ -d "helm/charts/$chart" ] || { echo "skip $chart (not in helm/charts)"; continue; }
+            image="$chart"
+            [ "$chart" = servicio-patron ] && image=app
+            helm upgrade --install "$chart" "helm/charts/$chart" \
+              --set image.repository="$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/$image" \
+              --set image.tag="$IMAGE_TAG" \
+              --wait --timeout 5m
+          done
+          kubectl get pods,svc,hpa,pvc

@@ -1,0 +1,32 @@
+# Class 3 (Docker + Artifact Registry) and class 5-6 baseline: just the
+# servicio patron, with its state on a named volume (stand-in for the
+# persistent disk used in classes 1-2 on a real VM).
+#
+#   docker compose -f compose/docker-compose.yml up -d --build --wait
+#   docker compose -f compose/docker-compose.yml down      # keeps the volume
+#   docker compose -f compose/docker-compose.yml down -v   # ALSO deletes the data
+#
+# APP_PORT changes the port on your laptop if 8080 is already taken.
+name: servicio-patron
+
+services:
+  servicio-patron:
+    build:
+      context: ../app
+    image: app:local
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DATA_DIR: /data
+      PORT: "8080"
+    volumes:
+      - servicio-patron-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  servicio-patron-data:

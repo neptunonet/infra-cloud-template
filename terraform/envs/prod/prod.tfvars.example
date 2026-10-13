@@ -1,0 +1,13 @@
+# Copy to prod.tfvars (git-ignored). In class 8 deploy.yml passes these
+# values from the repository variables instead; this file is for reading
+# the plan from your laptop.
+project_id = "my-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# The registry already exists (created by envs/dev). Set this to true only
+# if you never applied envs/dev in this project.
+# enable_artifact_registry = true
+
+# Who can reach app_port on the VM (default: anyone). Narrow it for an RPC:
+# app_source_ranges = ["<your-ip>/32"]

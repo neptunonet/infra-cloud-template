@@ -1,0 +1,84 @@
+# Class 4: smart-contract pipeline.
+#   - every PR / push to main that touches contracts/  -> forge fmt --check + forge test
+#   - a release tag vX.Y.Z (any files)                 -> deploy to Base Sepolia (testnet)
+#     and keep the ABI + bytecode + deployment record as a run artifact.
+# A deployed contract cannot be rolled back, so there is no deploy on merge and
+# never to mainnet from this pipeline.
+#
+# Before the first tag, create Settings > Environments > "testnet" with:
+#   secret   BASE_SEPOLIA_DEPLOYER_KEY  a TESTNET-only key (with or without 0x)
+#   variable BASE_SEPOLIA_RPC_URL       e.g. https://sepolia.base.org
+# Required reviewers on an environment need a public repo (or a paid plan).
+name: contracts
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"] # without this a tag push never starts the workflow
+    paths: ["contracts/**"] # path filters are not evaluated for tag pushes
+  pull_request:
+    paths: ["contracts/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: forge fmt (style gate)
+        run: forge fmt --check
+
+      - name: forge test
+        run: forge test -vv
+
+  deploy-testnet:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    environment: testnet # holds the deploy key
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Check the testnet secret and variable
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.BASE_SEPOLIA_DEPLOYER_KEY }}
+          RPC_URL: ${{ vars.BASE_SEPOLIA_RPC_URL }}
+        run: |
+          [ -n "$DEPLOYER_PRIVATE_KEY" ] || { echo "::error::secret BASE_SEPOLIA_DEPLOYER_KEY is empty (environment testnet)"; exit 1; }
+          [ -n "$RPC_URL" ] || { echo "::error::variable BASE_SEPOLIA_RPC_URL is empty (e.g. https://sepolia.base.org)"; exit 1; }
+
+      - name: Deploy to Base Sepolia
+        env:
+          # Set as an environment SECRET, never committed.
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.BASE_SEPOLIA_DEPLOYER_KEY }}
+          RPC_URL: ${{ vars.BASE_SEPOLIA_RPC_URL }}
+        run: |
+          forge script script/Deploy.s.sol \
+            --rpc-url "$RPC_URL" \
+            --private-key "$DEPLOYER_PRIVATE_KEY" \
+            --broadcast
+
+      - name: Version ABI, bytecode and deployment record
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p ../artifacts/contracts
+          cp out/Counter.sol/Counter.json "../artifacts/contracts/Counter-$TAG.json"
+          cp broadcast/Deploy.s.sol/*/run-latest.json "../artifacts/contracts/Deploy-$TAG.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contracts-${{ github.ref_name }}
+          path: artifacts/contracts/

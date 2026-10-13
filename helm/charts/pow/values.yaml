@@ -1,0 +1,42 @@
+# Default values for the pow chart, written for GKE.
+#   GKE:        --set image.repository=$AR/pow --set image.tag=<sha or vX.Y.Z>
+#   k3s / k3d:  -f helm/charts/pow/values-k3s.yaml
+# Install it with the release name "pow" so the DNS names are pow-0.pow-headless, ...
+#
+# BASELINE: the pow/ node in this repo is a single node (no /peers/sync yet),
+# so the default is 1 replica. More replicas start more INDEPENDENT chains
+# until you implement peers + consensus in your TF.
+image:
+  # Artifact Registry path: <REGION>-docker.pkg.dev/<PROJECT_ID>/infra-cloud-template/pow
+  repository: pow
+  tag: v1
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# PEERS env var of every node (comma-separated URLs).
+#   [] (default) = every pod of this StatefulSet, by its stable DNS name:
+#      http://pow-0.pow-headless:8090,http://pow-1.pow-headless:8090,...
+#   a list = exactly those URLs (other releases, other clusters...).
+# The baseline node only reads it; using it is TODO(TF).
+peers: []
+
+service:
+  port: 8090
+
+persistence:
+  size: 512Mi
+  # "" = the cluster's default StorageClass (GKE: standard-rwo, k3s: local-path).
+  # Changing it (or the size) on an existing release fails with "updates to
+  # statefulset spec ... are forbidden" (volumeClaimTemplates is immutable):
+  # helm uninstall pow, kubectl delete pvc -l app=pow, install again.
+  # replicaCount/PEERS can be changed with helm upgrade.
+  storageClassName: ""
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

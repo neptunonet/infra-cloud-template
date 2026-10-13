@@ -1,0 +1,19 @@
+{{- if .Values.exporter.enabled }}
+# Separate Service (same pods, different port + label) so the class-6
+# ServiceMonitor for "anvil-exporter" can select it independently of the
+# RPC service above.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "anvil.fullname" . }}-exporter
+  labels:
+    app: anvil-exporter
+    app.kubernetes.io/name: anvil-exporter
+spec:
+  selector:
+    app: {{ include "anvil.fullname" . }}
+  ports:
+    - port: {{ .Values.exporter.port }}
+      targetPort: {{ .Values.exporter.port }}
+      name: http
+{{- end }}

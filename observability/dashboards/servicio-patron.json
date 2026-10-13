@@ -1,0 +1,40 @@
+{
+  "title": "Servicio patron",
+  "uid": "servicio-patron",
+  "tags": ["catedra", "infra-cloud-template"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Requests per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(servicio_patron_hits_total[5m]))", "legendFormat": "hits/s" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Items created per second",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(servicio_patron_items_created_total[5m]))", "legendFormat": "items/s" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Request latency p95 (by path)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(servicio_patron_request_seconds_bucket[5m])) by (le, path))",
+          "legendFormat": "{{path}}"
+        }
+      ]
+    }
+  ]
+}

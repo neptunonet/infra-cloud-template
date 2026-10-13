@@ -1,0 +1,6 @@
+apiVersion: v2
+name: servicio-patron
+description: Class 5 (GKE, Helm, StatefulSet+PVC) chart for the servicio patron.
+type: application
+version: 0.2.0
+appVersion: "1.0.0"

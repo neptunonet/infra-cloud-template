@@ -1,0 +1,129 @@
+# Class 4 (CI/CD with GitHub Actions and OIDC).
+#   1) pytest for app/, model/, pow/ and the Anvil exporter
+#   2) docker build + smoke test (/healthz) for each service
+#   3) on a push to main or a vX.Y.Z tag: push to Artifact Registry,
+#      authenticated via Workload Identity Federation (OIDC). No JSON key.
+#
+# Tags pushed (scripts/compute-tags.sh): every push -> :<git sha>;
+# a tag vX.Y.Z -> also :vX.Y.Z. There is no :latest (a moving tag is not a version).
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# REPOSITORY VARIABLES (Settings > Secrets and variables > Actions > Variables).
+# They are identifiers, not secrets. Until GCP_PROJECT_ID exists the publish
+# job is SKIPPED (grey), so a fresh copy of the template stays green.
+#   GCP_PROJECT_ID                  e.g. "mi-proyecto-123"
+#   GCP_WORKLOAD_IDENTITY_PROVIDER  projects/<NUMBER>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+#   GCP_SERVICE_ACCOUNT             e.g. "ci-artifact-writer@mi-proyecto-123.iam.gserviceaccount.com"
+#   GCP_REGION                      optional, default us-central1
+#   AR_REPOSITORY                   optional, default infra-cloud-template
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+# Least privilege by default; only the publish job may ask for an OIDC token.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [app, model, pow, observability/anvil-exporter]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: pytest ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: uv run --python 3.12 --with-requirements requirements.txt --with pytest --with httpx pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: app
+            port: 8080
+          - service: model
+            port: 8081
+          - service: pow
+            port: 8090
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: docker build ${{ matrix.service }}
+        run: docker build -t "${{ matrix.service }}:${{ github.sha }}" "./${{ matrix.service }}"
+
+      - name: Smoke test (GET /healthz)
+        env:
+          IMAGE: ${{ matrix.service }}:${{ github.sha }}
+          PORT: ${{ matrix.port }}
+        run: |
+          docker run -d --name smoke -p "$PORT:$PORT" "$IMAGE"
+          # Retry for up to ~30 s instead of a fixed sleep: runners vary.
+          if ! curl -sf --retry 30 --retry-delay 1 --retry-all-errors "http://localhost:$PORT/healthz"; then
+            echo "::error::the container did not answer /healthz. Its logs:"
+            docker logs smoke
+            exit 1
+          fi
+          docker rm -f smoke
+
+  publish:
+    # Never on pull requests; skipped (not failed) until the variables exist.
+    if: github.event_name == 'push' && vars.GCP_PROJECT_ID != ''
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # lets THIS job ask GitHub for an OIDC token
+    strategy:
+      matrix:
+        service: [app, model, pow]
+    env:
+      REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+      AR_REPO: ${{ vars.AR_REPOSITORY || 'infra-cloud-template' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check repository variables
+        env:
+          WIP: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          SA: ${{ vars.GCP_SERVICE_ACCOUNT }}
+        run: |
+          [ -n "$SA" ] || { echo "::error::repository variable GCP_SERVICE_ACCOUNT is empty"; exit 1; }
+          case "$WIP" in
+            projects/*/locations/global/workloadIdentityPools/*/providers/*) ;;
+            *) echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER must be the full name: projects/<NUMBER>/locations/global/workloadIdentityPools/<pool>/providers/<provider>"; exit 1 ;;
+          esac
+
+      # GitHub issues a short-lived token; GCP verifies it against the
+      # provider and lets us impersonate the service account. Nothing stored.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+
+      - name: Build and push ${{ matrix.service }}
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ matrix.service }}
+        run: |
+          mapfile -t refs < <(./scripts/compute-tags.sh "$IMAGE" "$GITHUB_SHA" "$GITHUB_REF")
+          args=()
+          for r in "${refs[@]}"; do args+=(-t "$r"); done
+          docker build "${args[@]}" "./${{ matrix.service }}"
+          for r in "${refs[@]}"; do docker push "$r"; echo "pushed $r"; done

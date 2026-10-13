@@ -1,0 +1,30 @@
+# Default values for the Anvil chart, written for GKE.
+#   k3s / k3d:  helm upgrade --install anvil helm/charts/anvil -f helm/charts/anvil/values-k3s.yaml
+# Install it with the release name "anvil" so the names in the docs match.
+image:
+  # Foundry's public image. Pinned to the "stable" channel, never "latest".
+  repository: ghcr.io/foundry-rs/foundry
+  tag: stable
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8545
+
+# Seconds between state dumps to the PVC (survives SIGKILL / OOM).
+stateInterval: 5
+
+persistence:
+  size: 1Gi
+  # "" = the cluster's default StorageClass (GKE: standard-rwo, k3s: local-path).
+  storageClassName: ""
+
+# JSON-RPC -> Prometheus sidecar (observability/anvil-exporter, class 6).
+# Off by default because its image is not published by CI: build it, push or
+# import it, then pass --set exporter.enabled=true.
+exporter:
+  enabled: false
+  image:
+    repository: anvil-exporter
+    tag: v1
+    pullPolicy: IfNotPresent
+  port: 9090

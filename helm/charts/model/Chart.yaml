@@ -1,0 +1,6 @@
+apiVersion: v2
+name: model
+description: Stateless inference server as a Deployment+HPA (class 5 onward).
+type: application
+version: 0.2.0
+appVersion: "1.0.0"

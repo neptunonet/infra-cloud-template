@@ -1,0 +1,18 @@
+# Regular (load-balanced) service for the load test / API traffic; peer
+# discovery itself uses the headless service above.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pow.fullname" . }}
+  labels:
+    app: {{ include "pow.fullname" . }}
+    # Fixed label (does not depend on the release name): the ServiceMonitors
+    # in observability/servicemonitors.yaml select on it.
+    app.kubernetes.io/name: pow
+spec:
+  selector:
+    app: {{ include "pow.fullname" . }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      name: http
