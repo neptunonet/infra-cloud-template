@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY train.py serve.py .
+COPY train.py serve.py ./
 RUN python train.py
 
 EXPOSE 8081
