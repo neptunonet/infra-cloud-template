@@ -15,6 +15,9 @@
 //                          (default 1). The model is so light that it needs
 //                          about 0.05 to push the HPA past 60% CPU.
 //   PEAK_VUS               virtual users at the peak (default 30)
+//   FEATURES               model input as JSON (default a setosa, confidence
+//                          ~0.98). Class 6: an ambiguous flower such as
+//                          [6.0,2.7,5.1,1.6] lowers predict_confidence_score.
 import http from "k6/http";
 import { check, sleep } from "k6";
 
@@ -42,10 +45,11 @@ export const options = {
 const TARGET = __ENV.TARGET || "servicio-patron";
 const SERVICIO_PATRON_URL = __ENV.SERVICIO_PATRON_URL || "http://localhost:8080";
 const MODEL_URL = __ENV.MODEL_URL || "http://localhost:8081";
+const FEATURES = JSON.parse(__ENV.FEATURES || "[5.1, 3.5, 1.4, 0.2]");
 
 export default function () {
   if (TARGET === "model") {
-    const payload = JSON.stringify({ features: [5.1, 3.5, 1.4, 0.2] });
+    const payload = JSON.stringify({ features: FEATURES });
     const res = http.post(`${MODEL_URL}/predict`, payload, {
       headers: { "Content-Type": "application/json" },
     });

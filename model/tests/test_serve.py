@@ -76,3 +76,10 @@ def test_metrics(client):
     client.post("/predict", json={"features": [5.1, 3.5, 1.4, 0.2]})
     r = client.get("/metrics")
     assert b"model_predictions_total" in r.content
+
+
+def test_metrics_confidence_histogram(client):
+    client.post("/predict", json={"features": [5.1, 3.5, 1.4, 0.2]})
+    r = client.get("/metrics")
+    assert b"predict_confidence_score_count 1.0" in r.content
+    assert b'predict_confidence_score_bucket{le="0.5"}' in r.content

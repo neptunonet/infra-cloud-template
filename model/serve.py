@@ -32,6 +32,13 @@ PORT = int(os.environ.get("PORT", "8081"))
 
 PREDICTIONS = Counter("model_predictions_total", "Total predictions served")
 PREDICT_LATENCY = Histogram("model_predict_seconds", "Prediction latency in seconds")
+# Class 6: drift proxy. In-distribution inputs score ~0.98; ambiguous or
+# out-of-distribution inputs pull the confidence of the winning class down.
+PREDICT_CONFIDENCE = Histogram(
+    "predict_confidence_score",
+    "Probability of the predicted class",
+    buckets=(0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0),
+)
 
 _bundle = None
 
@@ -107,6 +114,7 @@ def predict(req: PredictRequest) -> dict[str, object]:
     idx = int(proba.argmax())
     PREDICTIONS.inc()
     PREDICT_LATENCY.observe(time.time() - start)
+    PREDICT_CONFIDENCE.observe(float(proba[idx]))
     return {"class": bundle["target_names"][idx], "confidence": float(proba[idx])}
 
 

@@ -74,6 +74,7 @@ module "gke" {
   environment    = "dev"
   network_id     = module.network.network_id
   subnetwork_id  = module.network.subnetwork_id
+  machine_type   = var.gke_machine_type
   max_node_count = 2
 }
 
