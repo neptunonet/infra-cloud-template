@@ -70,24 +70,38 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT }}
 
-      - uses: hashicorp/setup-terraform@v3
+      # Lab 8: the remote state was written by OpenTofu 1.13.1 (providers
+      # registered as registry.opentofu.org/hashicorp/google), so the job uses
+      # the same tool and version as the notebook instead of hashicorp/terraform.
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.13.1
 
-      - name: terraform init
-        run: terraform init -input=false -backend-config="bucket=${PROJECT_ID}-tfstate"
+      - name: tofu init
+        run: tofu init -input=false -backend-config="bucket=${PROJECT_ID}-tfstate"
 
-      - name: terraform plan
+      # Lab 8: dev.tfvars is git-ignored, so without these flags the job would
+      # plan with the defaults (create the Artifact Registry that already
+      # exists -> 409, create the class-2 VM, e2-small nodes too small for the
+      # observability stack). They mirror terraform/envs/dev/dev.tfvars.
+      - name: tofu plan
         run: |
-          terraform plan -input=false -out=tfplan \
+          extra=()
+          if [ "$TF_ENV" = dev ]; then
+            extra=(-var="enable_artifact_registry=false" -var="enable_vm=false" -var="gke_machine_type=e2-standard-2")
+          fi
+          tofu plan -input=false -out=tfplan \
             -var="project_id=$PROJECT_ID" \
             -var="region=$REGION" \
             -var="zone=$ZONE" \
             -var="enable_gke=true" \
-            -var="servicio_patron_image=$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/app:$IMAGE_TAG"
+            -var="servicio_patron_image=$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/app:$IMAGE_TAG" \
+            "${extra[@]}"
 
       # Applies exactly the plan above (the reviewer of the environment, if
       # any, approved this run before the job started).
-      - name: terraform apply
-        run: terraform apply -input=false tfplan
+      - name: tofu apply
+        run: tofu apply -input=false tfplan
 
   helm:
     needs: terraform
