@@ -3,7 +3,7 @@ alternatives) and in the class-8 integrator case.
 
 Endpoints:
   - POST /predict  -> {"features": [sepal_len, sepal_wid, petal_len, petal_wid]}
-                      returns {"class": "...", "confidence": 0.9x}
+                      returns {"class": "...", "confidence": 0.9x, "model_version": "v1.2"}
   - GET  /metrics   -> Prometheus exposition format
   - GET  /healthz   -> 200 once the model is loaded, 503 before (readiness)
   - GET  /          -> short help text
@@ -29,6 +29,9 @@ from pydantic import BaseModel
 
 MODEL_PATH = Path(os.environ.get("MODEL_PATH", "model.joblib"))
 PORT = int(os.environ.get("PORT", "8081"))
+# Class 8: observable change that travels commit -> CI -> image -> Helm.
+# v1.1 is already taken in the registry (class-6 image with the confidence metric).
+MODEL_VERSION = "v1.2"
 
 PREDICTIONS = Counter("model_predictions_total", "Total predictions served")
 PREDICT_LATENCY = Histogram("model_predict_seconds", "Prediction latency in seconds")
@@ -115,7 +118,11 @@ def predict(req: PredictRequest) -> dict[str, object]:
     PREDICTIONS.inc()
     PREDICT_LATENCY.observe(time.time() - start)
     PREDICT_CONFIDENCE.observe(float(proba[idx]))
-    return {"class": bundle["target_names"][idx], "confidence": float(proba[idx])}
+    return {
+        "class": bundle["target_names"][idx],
+        "confidence": float(proba[idx]),
+        "model_version": MODEL_VERSION,
+    }
 
 
 if __name__ == "__main__":

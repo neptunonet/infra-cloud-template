@@ -65,6 +65,7 @@ def test_predict_returns_class_and_confidence(client):
     body = r.json()
     assert body["class"] in {"setosa", "versicolor", "virginica"}
     assert 0.0 <= body["confidence"] <= 1.0
+    assert body["model_version"] == "v1.2"
 
 
 def test_predict_validates_feature_count(client):
