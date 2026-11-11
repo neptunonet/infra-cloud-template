@@ -7,6 +7,7 @@ volver a subir por error.
   psql ... -v dia=2026-11-10 < export_lluvia.sql | python exportar.py --dia 2026-11-10 --destino gs://BUCKET/datasets
 
 Valida antes de subir: columnas esperadas, al menos una fila y que todas las franjas sean de ese día (UTC).
+Salida: una línea JSON. Código 0 si subió, 2 si los datos no validan, 3 si la subida falla (p. ej. el día ya existe).
 """
 
 from __future__ import annotations
@@ -67,10 +68,17 @@ def main(argv: list[str] | None = None) -> int:
     buf = io.BytesIO()
     d.to_parquet(buf, index=False)
     url = f"{a.destino.rstrip('/')}/{a.dia}.parquet"
-    fs, ruta = fsspec.core.url_to_fs(url)
-    if ruta.startswith("/"):  # destino local: crear la carpeta
-        fs.makedirs(ruta.rsplit("/", 1)[0], exist_ok=True)
-    fs.pipe_file(ruta, buf.getvalue())  # una sola subida: alcanza con permiso de crear objetos
+    try:
+        fs, ruta = fsspec.core.url_to_fs(url)
+        if ruta.startswith("/"):  # destino local: crear la carpeta
+            fs.makedirs(ruta.rsplit("/", 1)[0], exist_ok=True)
+        fs.pipe_file(ruta, buf.getvalue())  # una sola subida: alcanza con permiso de crear objetos
+    except OSError as e:
+        # El caso esperable es «Forbidden»: el día ya está subido y la cuenta no puede pisarlo.
+        motivo = str(e).strip().splitlines()[-1]
+        print(json.dumps({"evento": "export_lluvia", "dia": str(a.dia), "ok": False, "destino": url,
+                          "error": f"no se pudo subir: {motivo}"}, ensure_ascii=False), flush=True)
+        return 3
 
     casos = d.groupby(["estacion", "franja_utc"]).obs_lluvia.max()
     print(json.dumps({

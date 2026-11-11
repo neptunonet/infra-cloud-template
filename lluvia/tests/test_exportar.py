@@ -44,3 +44,16 @@ def test_un_dia_repetido_en_dos_archivos_cuenta_una_vez():
     repetido = d.copy()
     repetido["n_filas"] = 20  # el export diario, con más tramos verificados
     assert len(filtrar(pd.concat([d, repetido]))) == len(filtrar(d))
+
+
+def test_si_la_subida_falla_avisa_en_una_linea(tmp_path, capsys, monkeypatch):
+    entrada = tmp_path / "dia.csv"
+    entrada.write_bytes(_csv_de_un_dia())
+
+    def rechazar(self, path, value, **kw):
+        raise OSError("Forbidden: https://storage.googleapis.com/...\nno tiene storage.objects.delete")
+
+    monkeypatch.setattr("fsspec.implementations.local.LocalFileSystem.pipe_file", rechazar)
+    assert exportar.main(["--dia", "2026-10-02", "--destino", str(tmp_path / "datasets"), "--entrada", str(entrada)]) == 3
+    log = json.loads(capsys.readouterr().out)
+    assert not log["ok"] and "storage.objects.delete" in log["error"]
