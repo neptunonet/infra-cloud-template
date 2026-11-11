@@ -84,6 +84,15 @@ resource "google_storage_bucket_iam_member" "export_crea_datasets" {
   }
 }
 
+# El export corre en el VPS con la imagen multi-arch de lluvia (exportar.py): esta cuenta tiene que poder bajarla.
+# Solo lectura y solo sobre el repositorio del curso.
+resource "google_artifact_registry_repository_iam_member" "export_baja_imagen" {
+  location   = var.region
+  repository = var.ar_repository
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.export.email}"
+}
+
 # ---------- Pods de GKE (API y Job de entrenamiento) ----------
 # Leen todo el bucket y escriben solo en modelos/. Se conectan por Workload Identity (sin claves) cuando se
 # prende el clúster; ese vínculo va en envs/dev.

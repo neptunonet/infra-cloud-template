@@ -45,6 +45,10 @@ def filtrar(d: pd.DataFrame) -> pd.DataFrame:
         d[c] = pd.to_datetime(d[c])
         if d[c].dt.tz is not None:
             d[c] = d[c].dt.tz_convert("UTC").dt.tz_localize(None)
+    # Un día puede aparecer en dos archivos (la carga inicial y el export diario de ese día): queda la fila con más
+    # tramos, que es la del export hecho cuando ya estaba todo verificado.
+    clave = ["estacion", "franja_utc", "emision_utc", "es_api", "cerca_10km"]
+    d = d.sort_values("n_filas").drop_duplicates(clave, keep="last")
     lo, hi = FILTROS["anticipacion_h"]
     d = d[d.cerca_10km & ~d.es_api & d.anticip_h.between(lo, hi) & (d.disponibles_min == FILTROS["modelos_disponibles"])]
     d = d.copy()
