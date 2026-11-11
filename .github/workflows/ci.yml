@@ -1,5 +1,5 @@
 # Class 4 (CI/CD with GitHub Actions and OIDC).
-#   1) pytest for app/, model/ and llm-gateway/ (Ollama gateway, Lab 4 3.3)
+#   1) pytest for app/, model/, llm-gateway/ (Ollama gateway, Lab 4 3.3) and lluvia/ (TF)
 #   2) docker build + smoke test (/healthz) for each service
 #   3) on a push to main or a vX.Y.Z tag: push to Artifact Registry,
 #      authenticated via Workload Identity Federation (OIDC). No JSON key.
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [app, model, llm-gateway]
+        service: [app, model, llm-gateway, lluvia]
     steps:
       - uses: actions/checkout@v4
 
@@ -57,6 +57,10 @@ jobs:
             port: 8081
           - service: llm-gateway
             port: 8082
+          # TF: sin modelo entrenado responde con la tabla de votos; DESTINO vacío alcanza para el smoke test.
+          - service: lluvia
+            port: 8083
+            docker_args: -e DESTINO=/tmp
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +72,7 @@ jobs:
           IMAGE: ${{ matrix.service }}:${{ github.sha }}
           PORT: ${{ matrix.port }}
         run: |
-          docker run -d --name smoke -p "$PORT:$PORT" "$IMAGE"
+          docker run -d --name smoke ${{ matrix.docker_args }} -p "$PORT:$PORT" "$IMAGE"
           # Retry for up to ~30 s instead of a fixed sleep: runners vary.
           if ! curl -sf --retry 30 --retry-delay 1 --retry-all-errors "http://localhost:$PORT/healthz"; then
             echo "::error::the container did not answer /healthz. Its logs:"
@@ -76,6 +80,23 @@ jobs:
             exit 1
           fi
           docker rm -f smoke
+
+      # TF: la imagen de lluvia también corre en el VPS (arm64). Se construye bajo QEMU y se prueba que importe
+      # todo (LightGBM, pyarrow, la API), para enterarse en el pull request y no recién al publicar.
+      - name: QEMU (arm64)
+        if: matrix.service == 'lluvia'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Buildx (arm64)
+        if: matrix.service == 'lluvia'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build y prueba arm64
+        if: matrix.service == 'lluvia'
+        run: |
+          docker buildx build --platform linux/arm64 --load -t lluvia:arm64 ./lluvia
+          docker run --rm --platform linux/arm64 -e DESTINO=/tmp lluvia:arm64 \
+            python -c "import platform, lightgbm, pyarrow, serve, train; print('ok', platform.machine())"
 
   publish:
     # Never on pull requests; skipped (not failed) until the variables exist.
@@ -87,7 +108,13 @@ jobs:
       id-token: write # lets THIS job ask GitHub for an OIDC token
     strategy:
       matrix:
-        service: [app, model, llm-gateway]
+        include:
+          - service: app
+          - service: model
+          - service: llm-gateway
+          # TF: la misma imagen corre en GKE (amd64) y en el VPS de Clima Rutero (arm64).
+          - service: lluvia
+            platforms: linux/amd64,linux/arm64
     env:
       REGION: ${{ vars.GCP_REGION || 'us-central1' }}
       AR_REPO: ${{ vars.AR_REPOSITORY || 'infra-cloud-template' }}
@@ -115,15 +142,30 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      - name: QEMU (multi-arch)
+        if: matrix.platforms
+        uses: docker/setup-qemu-action@v3
+
+      - name: Buildx (multi-arch)
+        if: matrix.platforms
+        uses: docker/setup-buildx-action@v3
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
 
       - name: Build and push ${{ matrix.service }}
         env:
           IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ matrix.service }}
+          PLATFORMS: ${{ matrix.platforms }}
         run: |
           mapfile -t refs < <(./scripts/compute-tags.sh "$IMAGE" "$GITHUB_SHA" "$GITHUB_REF")
           args=()
           for r in "${refs[@]}"; do args+=(-t "$r"); done
-          docker build "${args[@]}" "./${{ matrix.service }}"
-          for r in "${refs[@]}"; do docker push "$r"; echo "pushed $r"; done
+          if [ -n "$PLATFORMS" ]; then
+            # Un solo manifiesto con las dos arquitecturas; sin attestations para que el digest sea el de la imagen.
+            docker buildx build --platform "$PLATFORMS" --provenance=false "${args[@]}" --push "./${{ matrix.service }}"
+            for r in "${refs[@]}"; do echo "pushed $r ($PLATFORMS)"; done
+          else
+            docker build "${args[@]}" "./${{ matrix.service }}"
+            for r in "${refs[@]}"; do docker push "$r"; echo "pushed $r"; done
+          fi
