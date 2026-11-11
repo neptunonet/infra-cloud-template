@@ -43,6 +43,8 @@ def test_promueve_un_modelo_que_le_gana_a_la_tabla(csv, tmp_path):
     meta = json.loads((carpeta / "metadata.json").read_text())
     assert meta["datos"]["archivos"][0]["sha256"]
     assert set(meta["evaluacion"]["recetas"]) == {"tabla_app", "logistica_rayos"}
+    assert meta["tiempos_s"]["entrenamiento_final"] > 0 and meta["tiempos_s"]["evaluacion"] > 0
+    assert set(meta["evaluacion"]["en_entrenamiento"]) == {"modelo", "tabla_app"}
     puntero = json.loads((destino / "activa.json").read_text())
     assert puntero == {**puntero, "receta": "logistica_rayos", "version": m["version"]}
 

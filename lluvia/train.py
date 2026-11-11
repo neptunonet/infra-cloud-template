@@ -31,6 +31,7 @@ import json
 import os
 import platform
 import sys
+import time
 from datetime import datetime, timezone
 
 import fsspec
@@ -142,6 +143,7 @@ def correr(datos: str, destino: str, candidatas: tuple[str, ...] = CANDIDATAS, a
     puntero = leer_json(puntero_url) or {"receta": recetas.REFERENCIA, "version": None}
     activa = puntero["receta"]
 
+    t0 = time.perf_counter()
     v = ev.ventana(d)
     evaluadas = list(dict.fromkeys([recetas.REFERENCIA, activa, *candidatas]))
     pred = ev.predicciones_rodantes(d, v["dias"], evaluadas)
@@ -151,6 +153,8 @@ def correr(datos: str, destino: str, candidatas: tuple[str, ...] = CANDIDATAS, a
     pares += [(r, activa) for r in aprendidas if activa != recetas.REFERENCIA and r != activa]
     comps = {p: ev.comparar(pred, *p) for p in pares}
 
+    t_evaluacion = time.perf_counter() - t0
+
     elegida, motivo = decidir(res, comps, activa, v["evidencia_suficiente"])
     if elegida != recetas.REFERENCIA:
         receta_version = elegida
@@ -159,8 +163,17 @@ def correr(datos: str, destino: str, candidatas: tuple[str, ...] = CANDIDATAS, a
     promovida = elegida == receta_version and elegida != recetas.REFERENCIA
 
     base = _unir(destino, "versiones", version)
+    t_entrenamiento, en_train = None, None
     if receta_version:
+        t1 = time.perf_counter()
         modelo = recetas.entrenar(receta_version, d)
+        t_entrenamiento = time.perf_counter() - t1
+        # Métricas sobre los mismos datos de entrenamiento (la consigna pide train y test): comparadas con las de la
+        # evaluación día por día muestran cuánto sobreajusta.
+        x = d.copy()
+        x["modelo"] = recetas.predecir(receta_version, modelo, x)
+        x["tabla_app"] = recetas.predecir(recetas.REFERENCIA, None, x)
+        en_train = {c: {"brier": ev.brier(x, c), "ece": ev.ece(x, c)} for c in ("modelo", "tabla_app")}
         buf = io.BytesIO()
         joblib.dump({"version": version, "receta": receta_version, "modelo": modelo,
                      "variables": recetas.VARIABLES_DE[receta_version]}, buf)
@@ -190,7 +203,9 @@ def correr(datos: str, destino: str, candidatas: tuple[str, ...] = CANDIDATAS, a
             "recetas": res,
             "comparaciones": list(comps.values()),
             "ece_max": ECE_MAX,
+            "en_entrenamiento": en_train,
         },
+        "tiempos_s": {"evaluacion": t_evaluacion, "entrenamiento_final": t_entrenamiento},
         "decision": {
             "activa_antes": puntero,
             "receta_elegida": elegida,

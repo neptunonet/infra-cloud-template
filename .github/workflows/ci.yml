@@ -163,7 +163,7 @@ jobs:
           for r in "${refs[@]}"; do args+=(-t "$r"); done
           if [ -n "$PLATFORMS" ]; then
             # Un solo manifiesto con las dos arquitecturas; sin attestations para que el digest sea el de la imagen.
-            docker buildx build --platform "$PLATFORMS" --provenance=false "${args[@]}" --push "./${{ matrix.service }}"
+            docker buildx build --platform "$PLATFORMS" --provenance=false --build-arg GIT_SHA="$GITHUB_SHA" "${args[@]}" --push "./${{ matrix.service }}"
             for r in "${refs[@]}"; do echo "pushed $r ($PLATFORMS)"; done
           else
             docker build "${args[@]}" "./${{ matrix.service }}"
