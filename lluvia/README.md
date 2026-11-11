@@ -33,6 +33,14 @@ Cada corrida entrena, evalúa, versiona y decide:
 
 Lee y escribe igual en disco local o en `gs://` (fsspec + gcsfs).
 
+El `metadata.json` también guarda los **tiempos** (`tiempos_s`: evaluación y entrenamiento final), las métricas **sobre
+los datos de entrenamiento** (`evaluacion.en_entrenamiento`, del modelo y de la tabla, para compararlas con las de la
+evaluación día por día) y el **commit del código** (`entorno.git_sha`, que el CI mete en la imagen al publicar).
+
+**Dónde corre (decisión 30 del TF):** todos los días en el VPS de Clima Rutero (`scripts/entrenar_lluvia.sh`, cron
+07:30, cuenta `lluvia-entrena`, 1 CPU y 1 GB); en GKE, como CronJob durante las sesiones de prueba. Misma imagen,
+mismo bucket, misma regla.
+
 ## API (`serve.py`)
 
 ```bash

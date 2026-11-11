@@ -118,3 +118,36 @@ resource "google_storage_bucket_iam_member" "servicio_escribe_modelos" {
     expression  = "resource.name.startsWith(\"projects/_/buckets/${local.bucket}/objects/modelos/\")"
   }
 }
+
+# ---------- Entrenamiento diario en el VPS (decisión 30) ----------
+# Mismos permisos sobre el bucket que los pods (lee todo, escribe solo en modelos/) más bajar la imagen. Es una
+# cuenta aparte para que la de los pods siga sin ninguna clave: esta sí tiene una, que vive solo en el VPS.
+resource "google_service_account" "entrena" {
+  account_id   = "lluvia-entrena"
+  display_name = "lluvia: entrenamiento diario en el VPS (lee datos, escribe modelos/)"
+}
+
+resource "google_storage_bucket_iam_member" "entrena_lee" {
+  bucket = google_storage_bucket.lluvia.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.entrena.email}"
+}
+
+resource "google_storage_bucket_iam_member" "entrena_escribe_modelos" {
+  bucket = google_storage_bucket.lluvia.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.entrena.email}"
+
+  condition {
+    title       = "solo-modelos"
+    description = "Crear, pisar y borrar solo bajo modelos/ (activa.json y versiones)"
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${local.bucket}/objects/modelos/\")"
+  }
+}
+
+resource "google_artifact_registry_repository_iam_member" "entrena_baja_imagen" {
+  location   = var.region
+  repository = var.ar_repository
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.entrena.email}"
+}

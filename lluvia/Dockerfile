@@ -22,6 +22,10 @@ COPY variables.py recetas.py evaluacion.py train.py serve.py exportar.py estacio
 RUN useradd --create-home --uid 1000 appuser && chown -R appuser /app
 USER appuser
 
+# Commit del código, para el metadata.json de cada entrenamiento (lo pasa el CI al publicar).
+ARG GIT_SHA=desconocido
+ENV GIT_SHA=$GIT_SHA
+
 EXPOSE 8083
 ENV PORT=8083 PYTHONUNBUFFERED=1
 

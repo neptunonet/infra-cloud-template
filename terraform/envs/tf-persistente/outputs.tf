@@ -22,3 +22,8 @@ output "cuenta_servicio" {
   description = "Cuenta de los pods de GKE (lee todo, escribe en modelos/)"
   value       = google_service_account.servicio.email
 }
+
+output "cuenta_entrena" {
+  description = "Cuenta del entrenamiento diario en el VPS (lee todo, escribe en modelos/)"
+  value       = google_service_account.entrena.email
+}
