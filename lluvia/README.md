@@ -65,6 +65,24 @@ cantidad de tramos, fuentes y milisegundos; **sin coordenadas**.
 Medido en la notebook con el modelo real (11/11, 5 pedidos por tamaño): 1 tramo 7–19 ms · 156 tramos 12–14 ms ·
 4.810 tramos 100–160 ms · 5.000 tramos 90–150 ms.
 
+## Imagen
+
+Una sola imagen para la API y el entrenamiento, **multi-arch** (amd64 para GKE, arm64 para el VPS):
+
+```bash
+docker build -t lluvia:local lluvia/
+docker run --rm -v "$PWD/datos:/datos:ro" -v "$PWD/artefactos:/artefactos" lluvia:local \
+  python train.py --datos /datos/casos.csv --destino /artefactos          # entrenamiento (Job)
+docker run -d -e DESTINO=/artefactos -v "$PWD/artefactos:/artefactos:ro" -p 8083:8083 lluvia:local   # API
+```
+
+El modelo no va dentro de la imagen: lo lee de `DESTINO`. Base `python:3.12.15-slim-trixie` + `libgomp1` (LightGBM),
+usuario sin privilegios (uid 1000). Pesa ~1 GB sin comprimir (pyarrow 131 MB, scipy 153 MB, pandas 75 MB).
+Probado el 11/11 en la notebook (amd64): entrena dentro del contenedor y la API queda `healthy`.
+
+**CI:** tests y smoke test de `/healthz` como los otros servicios; en los pull requests además construye la versión
+arm64 bajo QEMU y prueba que importe todo; al publicar sube un solo manifiesto con las dos arquitecturas.
+
 ## Tests
 
 ```bash
@@ -90,4 +108,4 @@ zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métri
 - Probar contra el bucket real (`gs://`).
 - Registrar cada entrenamiento en Postgres (hoy queda en `metadata.json`).
 - Entrenar ocultando un modelo, para que con 2 de 3 responda el modelo y no la tabla (decisión 16).
-- Dockerfile multi-arch, Job de Kubernetes y CI.
+- Job de Kubernetes (CronJob) y Deployment con Helm.

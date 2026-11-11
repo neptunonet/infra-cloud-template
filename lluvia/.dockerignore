@@ -1,0 +1,9 @@
+tests/
+__pycache__/
+*.pyc
+.pytest_cache/
+artefactos/
+*.joblib
+*.csv
+!estaciones.csv
+README.md
