@@ -65,6 +65,22 @@ cantidad de tramos, fuentes y milisegundos; **sin coordenadas**.
 Medido en la notebook con el modelo real (11/11, 5 pedidos por tamaño): 1 tramo 7–19 ms · 156 tramos 12–14 ms ·
 4.810 tramos 100–160 ms · 5.000 tramos 90–150 ms.
 
+## Export diario (`exportar.py`)
+
+Lo corre el VPS de Clima Rutero cada día (`scripts/export_lluvia.sh` y `scripts/export_lluvia.sql` en ese repo), con
+la cuenta `lluvia-export`, que solo puede **crear** objetos en `datasets/`:
+
+```bash
+psql ... -v dia=2026-11-10 < export_lluvia.sql | python exportar.py --dia 2026-11-10 --destino gs://BUCKET/datasets
+```
+
+Valida antes de subir (columnas, al menos una fila, todas las franjas del día pedido) y sube `datasets/AAAA-MM-DD.parquet`
+en una sola escritura. Si algo no cierra, no sube nada y sale con código 2. Como la cuenta no puede pisar, un día ya
+subido no se puede reemplazar por error.
+
+Si un día aparece en dos archivos (por ejemplo, la carga inicial y el export de ese día), `variables.filtrar` se queda
+con la fila de más tramos.
+
 ## Imagen
 
 Una sola imagen para la API y el entrenamiento, **multi-arch** (amd64 para GKE, arm64 para el VPS):
@@ -90,7 +106,8 @@ uv run --python 3.12 --with-requirements requirements.txt --with pytest --with h
 ```
 
 Con datos sintéticos: promoción, vuelta atrás a la tabla, falta de evidencia y línea de comandos (`test_train.py`);
-zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métricas (`test_serve.py`). 15 en total.
+zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métricas (`test_serve.py`); export válido,
+vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`). 20 en total.
 
 ## Archivos
 
@@ -101,11 +118,11 @@ zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métri
 | `evaluacion.py` | Ventana, evaluación día por día, Brier, calibración, avisos por sensibilidad, intervalos |
 | `train.py` | El ciclo completo |
 | `serve.py` | La API |
+| `exportar.py` | Export diario desde el VPS: valida el CSV del día y lo sube como Parquet |
 | `estaciones.csv` | Coordenadas de las estaciones METAR argentinas (aviationweather.gov, 09/11) |
 
 ## Pendiente
 
-- Probar contra el bucket real (`gs://`).
 - Registrar cada entrenamiento en Postgres (hoy queda en `metadata.json`).
 - Entrenar ocultando un modelo, para que con 2 de 3 responda el modelo y no la tabla (decisión 16).
 - Job de Kubernetes (CronJob) y Deployment con Helm.
