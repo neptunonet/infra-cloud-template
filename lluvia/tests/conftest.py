@@ -6,6 +6,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Estaciones reales (AMBA y Litoral), para que la API pueda calcular la zona con estaciones.csv.
+ESTACIONES = ["SADP", "SADM", "SADL", "SADJ", "SAAR", "SAAV"]
+
 
 def datos_sinteticos(escenario: str, dias: int = 22, estaciones: int = 6, tasa_lluvia: float = 1.0,
                      semilla: int = 0) -> pd.DataFrame:
@@ -34,7 +37,7 @@ def datos_sinteticos(escenario: str, dias: int = 22, estaciones: int = 6, tasa_l
                 for e in range(3):
                     emision = franja - pd.Timedelta(minutes=15 * (e + 2))
                     filas.append({
-                        "estacion": f"SA{est:02d}", "franja_utc": franja, "emision_utc": emision,
+                        "estacion": ESTACIONES[est % len(ESTACIONES)], "franja_utc": franja, "emision_utc": emision,
                         "es_api": "f", "cerca_10km": "t", "n_filas": 10, "n_tramos": 3, "dist_km_media": 5.0,
                         "anticip_h": (franja - emision).total_seconds() / 3600, "votos_media": votos,
                         "votos_max": votos, "disponibles_min": 3, "mm3h_media": gfs, "mm3h_max": gfs,

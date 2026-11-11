@@ -179,6 +179,7 @@ def correr(datos: str, destino: str, candidatas: tuple[str, ...] = CANDIDATAS, a
             "filas": len(d),
             "casos": len(casos),
             "casos_con_lluvia": int(casos.sum()),
+            "estaciones": sorted(d.estacion.unique()),  # la API las usa para decidir la zona
             "dias": d.dia.nunique(),
             "desde": str(d.dia.min()),
             "hasta": str(d.dia.max()),

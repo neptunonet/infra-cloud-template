@@ -5,6 +5,10 @@ scikit-learn==1.5.2
 lightgbm==4.5.0
 joblib==1.4.2
 pyarrow==18.1.0
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+prometheus_client==0.21.0
+pydantic==2.9.2
 # Lectura y escritura en gs:// con la misma API que en disco local.
 fsspec==2024.10.0
 gcsfs==2024.10.0
