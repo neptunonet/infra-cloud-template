@@ -35,9 +35,9 @@ jobs:
       matrix:
         service: [app, model, llm-gateway, lluvia]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           python-version: "3.12"
 
@@ -62,7 +62,7 @@ jobs:
             port: 8083
             docker_args: -e DESTINO=/tmp
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: docker build ${{ matrix.service }}
         run: docker build -t "${{ matrix.service }}:${{ github.sha }}" "./${{ matrix.service }}"
@@ -85,11 +85,11 @@ jobs:
       # todo (LightGBM, pyarrow, la API), para enterarse en el pull request y no recién al publicar.
       - name: QEMU (arm64)
         if: matrix.service == 'lluvia'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Buildx (arm64)
         if: matrix.service == 'lluvia'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build y prueba arm64
         if: matrix.service == 'lluvia'
@@ -119,7 +119,7 @@ jobs:
       REGION: ${{ vars.GCP_REGION || 'us-central1' }}
       AR_REPO: ${{ vars.AR_REPOSITORY || 'infra-cloud-template' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check repository variables
         env:
@@ -135,20 +135,20 @@ jobs:
       # GitHub issues a short-lived token; GCP verifies it against the
       # provider and lets us impersonate the service account. Nothing stored.
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       - name: QEMU (multi-arch)
         if: matrix.platforms
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Buildx (multi-arch)
         if: matrix.platforms
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet

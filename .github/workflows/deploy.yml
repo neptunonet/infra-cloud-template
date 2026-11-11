@@ -55,7 +55,7 @@ jobs:
       run:
         working-directory: terraform/envs/${{ inputs.env }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check inputs and variables
         run: |
@@ -65,7 +65,7 @@ jobs:
           esac
 
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT }}
@@ -73,7 +73,7 @@ jobs:
       # Lab 8: the remote state was written by OpenTofu 1.13.1 (providers
       # registered as registry.opentofu.org/hashicorp/google), so the job uses
       # the same tool and version as the notebook instead of hashicorp/terraform.
-      - uses: opentofu/setup-opentofu@v1
+      - uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: 1.13.1
 
@@ -108,21 +108,21 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.env }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/get-gke-credentials@v2
+      - uses: google-github-actions/get-gke-credentials@v3
         with:
           cluster_name: infra-cloud-${{ inputs.env }}-gke
           location: ${{ env.ZONE }}
           project_id: ${{ env.PROJECT_ID }}
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
 
       - name: helm upgrade --install
         env:
