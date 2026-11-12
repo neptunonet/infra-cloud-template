@@ -21,6 +21,15 @@ resource "google_container_cluster" "this" {
   release_channel {
     channel = "REGULAR"
   }
+
+  # Workload Identity (TF): cada pod usa la cuenta de GCP vinculada a su cuenta de Kubernetes, sin claves JSON. Sin
+  # esto los pods heredan la cuenta de los nodos (la de Compute por defecto, que tiene roles/editor del proyecto).
+  dynamic "workload_identity_config" {
+    for_each = var.workload_identity ? [1] : []
+    content {
+      workload_pool = "${var.project_id}.svc.id.goog"
+    }
+  }
 }
 
 resource "google_container_node_pool" "primary" {
@@ -42,6 +51,15 @@ resource "google_container_node_pool" "primary" {
     labels = {
       environment = var.environment
       managed_by  = "opentofu"
+    }
+
+    # Los pods ven el servidor de metadatos de GKE, que les da la identidad de su cuenta de Kubernetes (y no la del
+    # nodo). Un pod sin vínculo no tiene credenciales de GCP.
+    dynamic "workload_metadata_config" {
+      for_each = var.workload_identity ? [1] : []
+      content {
+        mode = "GKE_METADATA"
+      }
     }
   }
 
