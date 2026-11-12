@@ -1,0 +1,10 @@
+# El esquema vive en esquema/*.sql (se puede leer y correr a mano). Postgres corre estos archivos solo la primera
+# vez, con el volumen vacío; para un cambio posterior se agrega un 002_*.sql idempotente y se corre con psql.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "postgres.fullname" . }}-esquema
+  labels:
+    app: {{ include "postgres.fullname" . }}
+data:
+{{ (.Files.Glob "esquema/*.sql").AsConfig | indent 2 }}
