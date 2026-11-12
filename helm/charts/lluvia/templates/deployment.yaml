@@ -45,6 +45,14 @@ spec:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /var/run/gcp/clave.json
             {{- end }}
+            {{- with .Values.baseDatos.secret }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: DATABASE_URL
+                  optional: true   # sin Postgres la API anda igual, sin registro
+            {{- end }}
             {{- if .Values.secretClaves }}
             - name: CLAVES
               valueFrom:

@@ -16,12 +16,14 @@ Si la receta activa es la tabla (todavía no hay un modelo que le gane), todo sa
 
 El umbral de aviso no está acá: lo elige quien usa la app (decisión 25).
 Logs: una línea JSON por pedido, sin coordenadas ni datos de usuarios (decisión 20).
+Registro: cada pedido (también los rechazados) va a Postgres en segundo plano (ver registro.py).
 
 Variables de entorno:
   DESTINO      carpeta o gs://bucket/prefijo donde train.py deja `activa.json` y `versiones/`
   CLAVES       opcional, «consumidor:clave,...»; si está, /predict pide el encabezado X-API-Key
   RECARGA_SEG  cada cuánto se relee el puntero (por defecto 300)
   PORT         por defecto 8083
+  DATABASE_URL opcional, postgresql://...; si está, cada pedido y sus predicciones se guardan en Postgres
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, G
 from pydantic import BaseModel, Field
 
 import recetas
+from registro import Pedido as PedidoRegistrado, Registro
 from variables import MODELOS, agregar_variables
 
 MAX_FILAS = 5000  # decisión 18
@@ -62,6 +65,8 @@ TAMANO = Histogram("lluvia_lote_filas", "Tramos por pedido", registry=REGISTRO,
                    buckets=(1, 10, 50, 150, 500, 1000, 2500, 5000))
 PROBABILIDAD = Histogram("lluvia_probabilidad", "Probabilidad devuelta (para la alerta de deriva)", registry=REGISTRO,
                          buckets=(0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0))
+REGISTRADOS = Counter("lluvia_registro_total", "Pedidos llevados a Postgres, por resultado", ["resultado"],
+                      registry=REGISTRO)
 VERSION = Gauge("lluvia_version_info", "Versión servida (valor 1)", ["version", "receta"], registry=REGISTRO)
 
 
@@ -205,13 +210,15 @@ def _claves() -> dict[str, str]:
     return out
 
 
-def crear_app(destino: str | None = None) -> FastAPI:
+def crear_app(destino: str | None = None, registro: Registro | None = None) -> FastAPI:
     estado = Estado(destino if destino is not None else os.environ.get("DESTINO"))
+    registro = registro or Registro(os.environ.get("DATABASE_URL"), contador=REGISTRADOS)
     recarga = float(os.environ.get("RECARGA_SEG", "300"))
     claves = _claves()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        registro.iniciar()
         await asyncio.to_thread(estado.cargar)
 
         async def bucle():
@@ -222,9 +229,11 @@ def crear_app(destino: str | None = None) -> FastAPI:
         tarea = asyncio.create_task(bucle())
         yield
         tarea.cancel()
+        await asyncio.to_thread(registro.cerrar)
 
     app = FastAPI(title="lluvia", version="1.0.0", lifespan=lifespan)
     app.state.estado = estado
+    app.state.registro = registro
 
     @app.get("/")
     def indice() -> dict:
@@ -246,26 +255,46 @@ def crear_app(destino: str | None = None) -> FastAPI:
     def metrics() -> Response:
         return Response(generate_latest(REGISTRO), media_type=CONTENT_TYPE_LATEST)
 
+    def anotar(pedido: Pedido, t0: float, recibido: datetime, resultado: str, consumidor: str | None,
+               filas: list[dict] | None = None) -> float:
+        """Deja el pedido en la cola del registro y devuelve la latencia en segundos."""
+        dt = time.perf_counter() - t0
+        predicciones = []
+        if filas:
+            anticip = ((_utc(pd.Series([f.hora_paso_utc for f in pedido.filas]))
+                        - _utc(pd.Series([f.emision_utc for f in pedido.filas]))).dt.total_seconds() / 3600).tolist()
+            predicciones = [(f["p"], f["fuente"], f["zona"], f["degradado"], f["motivo"], e.votos, round(a, 2))
+                            for f, e, a in zip(filas, pedido.filas, anticip)]
+        registro.anotar(PedidoRegistrado(recibido_utc=recibido, consumidor=consumidor, filas=len(pedido.filas),
+                                         version=estado.version, receta=estado.receta,
+                                         latencia_ms=round(dt * 1000, 2), resultado=resultado,
+                                         predicciones=predicciones))
+        return dt
+
     @app.post("/predict")
     def predict(pedido: Pedido, x_api_key: str | None = Header(default=None)) -> dict:
-        t0 = time.perf_counter()
+        t0, recibido = time.perf_counter(), datetime.now(timezone.utc)
         consumidor = "anonimo"
         if claves:
             if x_api_key not in claves:
                 PEDIDOS.labels(resultado="sin_clave").inc()
+                anotar(pedido, t0, recibido, "sin_clave", None)
                 raise HTTPException(status_code=401, detail="falta X-API-Key o no es válida")
             consumidor = claves[x_api_key]
         if len(pedido.filas) > MAX_FILAS:
             PEDIDOS.labels(resultado="lote_grande").inc()
+            anotar(pedido, t0, recibido, "lote_grande", consumidor)
             raise HTTPException(status_code=413, detail=f"máximo {MAX_FILAS} tramos por pedido")
         if not estado.listo:
             PEDIDOS.labels(resultado="no_listo").inc()
+            anotar(pedido, t0, recibido, "no_listo", consumidor)
             raise HTTPException(status_code=503, detail="el servicio todavía no cargó la versión activa")
         filas = estado.predecir(pedido.filas)
         dt = time.perf_counter() - t0
         LATENCIA.observe(dt)
         TAMANO.observe(len(filas))
         PEDIDOS.labels(resultado="ok").inc()
+        anotar(pedido, t0, recibido, "ok", consumidor, filas)
         fuentes = pd.Series([f["fuente"] for f in filas]).value_counts().to_dict()
         print(json.dumps({"evento": "predict", "consumidor": consumidor, "filas": len(filas), "fuentes": fuentes,
                           "version": estado.version, "ms": round(dt * 1000, 1)}), flush=True)
