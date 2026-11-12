@@ -1,0 +1,84 @@
+# Trabajo Final: alertas del servicio de lluvia, versionadas en el repo (devolución del Lab 6: la regla se perdió con el
+# clúster). Las evalúa Prometheus y las manda Alertmanager al contact point (kube-prom-tf.yaml).
+#   kubectl apply -f observability/lluvia/alertas.yaml
+# Umbrales: los de las hipótesis del TF (H11: p95 de 1 s) y los del ensayo de carga del 12/11.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lluvia
+  labels:
+    app.kubernetes.io/name: lluvia
+spec:
+  groups:
+    - name: lluvia.servicio
+      rules:
+        # Algún pod no pasa la readiness (/healthz da 503 hasta leer la versión activa del bucket): no recibe tráfico.
+        - alert: LluviaPodsNoListos
+          expr: kube_deployment_status_replicas_unavailable{deployment="lluvia"} > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "lluvia: {{ $value }} réplica(s) sin pasar /healthz hace 10 min"
+            description: "Mirar /healthz y /version del pod: suele ser que no puede leer el bucket (credenciales o Workload Identity)."
+
+        # H11: más de 1 s de p95 es la condición para partir lotes o escalar distinto.
+        - alert: LluviaLatenciaAlta
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(lluvia_predict_seconds_bucket[5m]))) > 1
+            and sum(rate(lluvia_predict_seconds_count[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "lluvia: p95 de /predict en {{ $value | humanizeDuration }} (más de 1 s, 5 min)"
+            description: "Con lotes grandes y pocas réplicas el servicio está limitado por CPU (ensayo del 12/11). Ver réplicas del HPA y CPU por pod."
+
+        # Más del 5 % de los pedidos rechazados (sin clave, lote grande, servicio no listo).
+        - alert: LluviaRechazos
+          expr: |
+            sum(rate(lluvia_pedidos_total{resultado!="ok"}[5m])) / sum(rate(lluvia_pedidos_total[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "lluvia: {{ $value | humanizePercentage }} de pedidos rechazados"
+
+        # El registro en Postgres perdió pedidos (la API sigue respondiendo; se pierde el historial).
+        - alert: LluviaRegistroFalla
+          expr: sum(rate(lluvia_registro_total{resultado=~"error|descartado"}[10m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "lluvia: el registro en Postgres está perdiendo pedidos"
+            description: "error = la escritura falla (¿Postgres caído o disco lleno?); descartado = la cola se llenó."
+
+    - name: lluvia.modelo
+      rules:
+        # Vuelta atrás automática de train.py (decisión 27): la receta activa dejó de ganarle a la tabla de la app.
+        - alert: LluviaVolvioALaTabla
+          expr: max(lluvia_version_info{receta="tabla_app"}) == 1
+          for: 10m
+          labels:
+            severity: info
+          annotations:
+            summary: "lluvia: se está sirviendo la tabla de votos de la app, no un modelo aprendido"
+            description: "Ver el motivo en activa.json o en la tabla versiones de Postgres."
+
+        # Deriva: la probabilidad media de lo que se sirve sale del rango esperado. En el ensayo con lotes de una ruta
+        # típica la media fue ~0,13; la tasa de lluvia de los casos es ~0,16. Solo con tráfico (>= 360 tramos/h).
+        - alert: LluviaDerivaProbabilidad
+          expr: |
+            (
+              sum(rate(lluvia_probabilidad_sum[1h])) / sum(rate(lluvia_probabilidad_count[1h])) < 0.02
+              or
+              sum(rate(lluvia_probabilidad_sum[1h])) / sum(rate(lluvia_probabilidad_count[1h])) > 0.45
+            )
+            and sum(rate(lluvia_probabilidad_count[1h])) > 0.1
+          for: 30m
+          labels:
+            severity: info
+          annotations:
+            summary: "lluvia: probabilidad media en {{ $value | humanize }}, fuera de 0,02–0,45 (1 h)"
+            description: "Puede ser un día de tormenta (legítimo) o datos de entrada rotos (un modelo numérico en 0). Comparar con /version y los pronósticos."

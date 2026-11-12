@@ -1,0 +1,19 @@
+# Trabajo Final: Prometheus lee /metrics de la API lluvia cada 15 s. Selecciona la etiqueta fija del Service
+# (app.kubernetes.io/name: lluvia), así funciona con cualquier nombre de release y en cualquier namespace.
+# Cada serie lleva la etiqueta `pod`: el dashboard muestra cómo se reparten los pedidos entre réplicas.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lluvia
+  labels:
+    app.kubernetes.io/name: lluvia
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lluvia
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
