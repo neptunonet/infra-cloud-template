@@ -1,0 +1,75 @@
+{{- if .Values.cargaVersiones.enabled }}
+# Hook post-install/post-upgrade: Helm lo crea después de los demás objetos y espera a que termine. Si falla, la
+# release queda en failed (y se ve en `helm status`). before-hook-creation: el Job anterior se borra recién al
+# crear el siguiente, así sus logs quedan para mirar.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "lluvia.fullname" . }}-cargar-versiones
+  labels:
+    app: {{ include "lluvia.fullname" . }}
+    componente: cargar-versiones
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lluvia
+        componente: cargar-versiones
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "lluvia.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cargar-versiones
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "cargar_versiones.py"]
+          env:
+            - name: DESTINO
+              value: {{ required "falta modelos.destino" .Values.modelos.destino | quote }}
+            {{- if .Values.gcp.secretCredenciales }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/gcp/clave.json
+            {{- end }}
+            {{- with .Values.baseDatos.secret }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: DATABASE_URL
+                  optional: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.cargaVersiones.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.gcp.secretCredenciales }}
+            - name: gcp
+              mountPath: /var/run/gcp
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.gcp.secretCredenciales }}
+        - name: gcp
+          secret:
+            secretName: {{ .Values.gcp.secretCredenciales }}
+        {{- end }}
+{{- end }}

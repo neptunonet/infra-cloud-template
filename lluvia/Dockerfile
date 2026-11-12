@@ -17,7 +17,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY variables.py recetas.py evaluacion.py train.py serve.py registro.py exportar.py estaciones.csv ./
+COPY variables.py recetas.py evaluacion.py train.py serve.py registro.py cargar_versiones.py exportar.py estaciones.csv ./
 
 RUN useradd --create-home --uid 1000 appuser && chown -R appuser /app
 USER appuser
