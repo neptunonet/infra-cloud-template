@@ -1,0 +1,83 @@
+# Trabajo Final: se aplica ENCIMA de observability/kube-prometheus-stack-values.yaml (el de la Clase 6), igual en
+# k3d y en GKE:
+#   helm upgrade --install kube-prom oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --version 91.9.0 \
+#     -n observability --create-namespace \
+#     -f observability/kube-prometheus-stack-values.yaml -f observability/lluvia/kube-prom-tf.yaml \
+#     --set grafana.adminPassword="$(cat ~/.grafana-pass)" \
+#     --set "alertmanager.config.receivers[1].telegram_configs[0].chat_id=$(cat ~/.config/tf-lluvia/telegram-chat-id)" --wait
+# (OCI: no hace falta `helm repo add`; el índice del repo pesa varios MB y con una red lenta no termina de bajar.)
+# Después: kubectl apply -f observability/lluvia/   (ServiceMonitor, dashboard y alertas)
+
+grafana:
+  # Lab 6: con 256Mi Grafana 13 quedó OOMKilled al abrir Connections (~390 MiB en reposo).
+  resources:
+    limits:
+      memory: 768Mi
+  sidecar:
+    datasources:
+      alertmanager:
+        enabled: true # Alertmanager está prendido (abajo): Grafana muestra sus alertas
+
+prometheus:
+  prometheusSpec:
+    # Igual que con los ServiceMonitor: toma TODAS las PrometheusRule, sin la etiqueta `release:`.
+    ruleSelectorNilUsesHelmValues: false
+
+# Las reglas viven en el repo (PrometheusRule, observability/lluvia/alertas.yaml) y Alertmanager las manda al contact
+# point. Así no se pierden con el clúster (devolución del Lab 6).
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+    # El token del bot de Telegram, fuera del repo. Antes de instalar:
+    #   kubectl create namespace observability
+    #   kubectl -n observability create secret generic alertmanager-telegram \
+    #     --from-file=token=$HOME/.config/tf-lluvia/telegram-token
+    # Queda montado en /etc/alertmanager/secrets/alertmanager-telegram/token.
+    secrets:
+      - alertmanager-telegram
+  # Contact point real (devolución del Lab 6): las alertas del servicio (Lluvia*) llegan a Telegram, también cuando se
+  # resuelven. Las del stack (CPUThrottlingHigh, Watchdog...) no salen: llenarían el chat de ruido. El número de chat
+  # tampoco va al repo: se pasa al instalar con
+  #   --set 'alertmanager.config.receivers[1].telegram_configs[0].chat_id=<número>'
+  config:
+    route:
+      receiver: "null"
+      group_by: [alertname]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - receiver: telegram
+          matchers:
+            - alertname =~ "Lluvia.*"
+    receivers:
+      - name: "null"
+      - name: telegram
+        telegram_configs:
+          - bot_token_file: /etc/alertmanager/secrets/alertmanager-telegram/token
+            chat_id: 0
+            send_resolved: true
+            parse_mode: HTML
+            message: |-
+              {{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} <b>{{ .CommonLabels.alertname }}</b> ({{ .CommonLabels.severity }}){{ if eq .Status "resolved" }}: resuelta{{ end }}
+              {{ range .Alerts }}{{ .Annotations.summary }}
+              {{ if .Annotations.description }}{{ .Annotations.description }}
+              {{ end }}{{ end }}
+    inhibit_rules: []
+
+# El plano de control no se puede leer en k3s ni en GKE (lo maneja el proveedor): sin esto, sus reglas por defecto
+# (TargetDown, KubeSchedulerDown...) quedan disparadas todo el tiempo y tapan las alertas reales.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
