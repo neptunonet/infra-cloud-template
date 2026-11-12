@@ -43,3 +43,14 @@ variable "max_node_count" {
   type        = number
   default     = 3
 }
+
+variable "project_id" {
+  description = "Proyecto de GCP (para el workload pool <proyecto>.svc.id.goog)."
+  type        = string
+}
+
+variable "workload_identity" {
+  description = "Workload Identity: los pods usan cuentas de GCP vinculadas a su cuenta de Kubernetes, sin claves."
+  type        = bool
+  default     = true
+}

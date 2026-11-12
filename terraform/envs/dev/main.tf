@@ -76,6 +76,18 @@ module "gke" {
   subnetwork_id  = module.network.subnetwork_id
   machine_type   = var.gke_machine_type
   max_node_count = 2
+  project_id     = var.project_id
+}
+
+# Workload Identity (TF, decisión 28): cada cuenta de Kubernetes de la lista puede actuar como su cuenta de GCP.
+# Va acá y no en tf-persistente porque el pool <proyecto>.svc.id.goog existe solo mientras hay un clúster: el vínculo
+# se crea y se destruye con él. Las cuentas de GCP sí son persistentes (tf-persistente).
+resource "google_service_account_iam_member" "workload_identity" {
+  for_each = var.enable_gke ? var.workload_identity_cuentas : {}
+
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${each.value}@${var.project_id}.iam.gserviceaccount.com"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${module.gke[0].workload_pool}[${each.key}]"
 }
 
 locals {

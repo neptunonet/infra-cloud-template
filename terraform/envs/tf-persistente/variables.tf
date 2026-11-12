@@ -14,3 +14,9 @@ variable "ar_repository" {
   type        = string
   default     = "infra-cloud-template"
 }
+
+variable "cuenta_deploy" {
+  description = "Cuenta de deploy.yml (Lab 8), sin @...: crea el vínculo de Workload Identity con lluvia-servicio."
+  type        = string
+  default     = "ci-deployer"
+}

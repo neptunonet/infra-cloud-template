@@ -151,3 +151,12 @@ resource "google_artifact_registry_repository_iam_member" "entrena_baja_imagen" 
   role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:${google_service_account.entrena.email}"
 }
+
+# deploy.yml (cuenta ci-deployer, creada a mano en el Lab 8) crea y destruye en cada sesión de GKE el vínculo de
+# Workload Identity default/lluvia -> lluvia-servicio (envs/dev). Para eso necesita setIamPolicy sobre ESTA cuenta y
+# ninguna otra: el rol se da sobre la cuenta, no sobre el proyecto.
+resource "google_service_account_iam_member" "deployer_vincula_servicio" {
+  service_account_id = google_service_account.servicio.name
+  role               = "roles/iam.serviceAccountAdmin"
+  member             = "serviceAccount:${var.cuenta_deploy}@${var.project_id}.iam.gserviceaccount.com"
+}

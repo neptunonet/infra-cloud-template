@@ -8,6 +8,11 @@
 # a tag vX.Y.Z -> also :vX.Y.Z. There is no :latest (a moving tag is not a version).
 #   git tag v0.1.0 && git push origin v0.1.0
 #
+# TF: solo se construye lo que cambió. Si un servicio no cambió desde el push anterior (ni su carpeta ni este
+# workflow ni compute-tags.sh), su imagen de ese commit recibe también la etiqueta del commit nuevo con
+# `gcloud artifacts docker tags add` (sugerencia de la devolución del Lab 4): mismo digest, sin build ni almacenamiento
+# extra, y cada commit de main sigue teniendo sus 4 imágenes. Un tag vX.Y.Z etiqueta la imagen de su commit.
+#
 # REPOSITORY VARIABLES (Settings > Secrets and variables > Actions > Variables).
 # They are identifiers, not secrets. Until GCP_PROJECT_ID exists the publish
 # job is SKIPPED (grey), so a fresh copy of the template stays green.
@@ -120,6 +125,8 @@ jobs:
       AR_REPO: ${{ vars.AR_REPOSITORY || 'infra-cloud-template' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # para comparar con el push anterior
 
       - name: Check repository variables
         env:
@@ -142,18 +149,55 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v3
 
+      # ¿Hay que construir? Si ya existe una imagen igual (la de este commit, en un tag vX.Y.Z; o la del push anterior,
+      # si el servicio no cambió), alcanza con etiquetarla.
+      - name: Changed or reusable?
+        id: origen
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ matrix.service }}
+          BEFORE: ${{ github.event.before }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          existe() { gcloud artifacts docker images describe "$1" --quiet >/dev/null 2>&1; }
+          origen=""
+          if existe "$IMAGE:$GITHUB_SHA"; then
+            origen="$IMAGE:$GITHUB_SHA"
+          elif [[ "$GITHUB_REF" == refs/heads/* && -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ]] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+               && git diff --quiet "$BEFORE" "$GITHUB_SHA" -- "$SERVICE/" .github/workflows/ci.yml scripts/compute-tags.sh \
+               && existe "$IMAGE:$BEFORE"; then
+            origen="$IMAGE:$BEFORE"
+          fi
+          echo "origen=$origen" >> "$GITHUB_OUTPUT"
+          if [ -n "$origen" ]; then echo "$SERVICE sin cambios: se reutiliza $origen"; else echo "$SERVICE cambió: se construye"; fi
+
+      - name: Tag the existing image
+        if: steps.origen.outputs.origen != ''
+        env:
+          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ matrix.service }}
+          ORIGEN: ${{ steps.origen.outputs.origen }}
+        run: |
+          mapfile -t refs < <(./scripts/compute-tags.sh "$IMAGE" "$GITHUB_SHA" "$GITHUB_REF")
+          for r in "${refs[@]}"; do
+            [ "$r" = "$ORIGEN" ] && continue
+            gcloud artifacts docker tags add "$ORIGEN" "$r" --quiet
+            echo "tagged $r -> $ORIGEN"
+          done
+
       - name: QEMU (multi-arch)
-        if: matrix.platforms
+        if: matrix.platforms && steps.origen.outputs.origen == ''
         uses: docker/setup-qemu-action@v4
 
       - name: Buildx (multi-arch)
-        if: matrix.platforms
+        if: matrix.platforms && steps.origen.outputs.origen == ''
         uses: docker/setup-buildx-action@v4
 
       - name: Configure Docker for Artifact Registry
+        if: steps.origen.outputs.origen == ''
         run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
 
       - name: Build and push ${{ matrix.service }}
+        if: steps.origen.outputs.origen == ''
         env:
           IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ matrix.service }}
           PLATFORMS: ${{ matrix.platforms }}

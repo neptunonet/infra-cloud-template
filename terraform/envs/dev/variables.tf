@@ -67,3 +67,10 @@ variable "nginx_title" {
   type        = string
   default     = "Probando nginx para servir un sitio web"
 }
+
+variable "workload_identity_cuentas" {
+  description = "Workload Identity: «namespace/cuenta de Kubernetes» => cuenta de GCP (sin @...). Solo con enable_gke."
+  type        = map(string)
+  default     = {}
+  # TF: { "default/lluvia" = "lluvia-servicio" } (la API, el Job de carga y el CronJob usan la cuenta «lluvia»).
+}

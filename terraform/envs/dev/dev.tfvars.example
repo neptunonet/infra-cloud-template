@@ -17,3 +17,7 @@ zone       = "us-central1-a"
 
 # Who can reach app_port on the VM (default: anyone). Narrow it for an RPC:
 # app_source_ranges = ["<your-ip>/32"]
+
+# Trabajo Final: la cuenta de Kubernetes de la API (chart lluvia) actúa como lluvia-servicio (lee el bucket, escribe en
+# modelos/), sin claves. El chart necesita además --set gcp.cuentaServicio=lluvia-servicio@<proyecto>.iam.gserviceaccount.com
+# workload_identity_cuentas = { "default/lluvia" = "lluvia-servicio" }
