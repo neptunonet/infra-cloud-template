@@ -1,0 +1,6 @@
+apiVersion: v2
+name: postgres
+description: Postgres del servicio de lluvia (Trabajo Final). StatefulSet de 1 réplica con PVC y el esquema inicial.
+type: application
+version: 0.1.0
+appVersion: "18.6"

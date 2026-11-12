@@ -1,0 +1,95 @@
+# StatefulSet de 1 réplica: nombre estable (postgres-0) y su propio PVC, que sobrevive a borrar el pod y al
+# `helm uninstall` (igual que servicio-patron en la Clase 5). Sin réplicas de lectura: el volumen es chico y la carga,
+# de escritura.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "postgres.fullname" . }}
+  labels:
+    app: {{ include "postgres.fullname" . }}
+spec:
+  serviceName: {{ include "postgres.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "postgres.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "postgres.fullname" . }}
+      annotations:
+        # Si cambia el esquema, el pod se recrea (aunque solo se aplique sobre un volumen vacío).
+        checksum/esquema: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999    # usuario postgres de la imagen oficial (Debian)
+        runAsGroup: 999
+        fsGroup: 999      # en GKE el disco nuevo es de root: así el usuario 999 puede escribir
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.base.nombre | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.base.usuario | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres.fullname" . }}
+                  key: POSTGRES_PASSWORD
+          # PGDATA queda en el valor por defecto de la imagen 18 (/var/lib/postgresql/18/docker), una carpeta adentro
+          # del volumen: en GKE la raíz del disco trae lost+found y initdb no arranca en una carpeta que no esté vacía.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -h 127.0.0.1"]
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -h 127.0.0.1"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: datos
+              mountPath: /var/lib/postgresql
+            - name: esquema
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: esquema
+          configMap:
+            name: {{ include "postgres.fullname" . }}-esquema
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: datos
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.persistencia.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistencia.tamano }}
