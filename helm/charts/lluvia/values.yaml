@@ -50,3 +50,16 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 60
+
+# Job que pasa los metadata.json del bucket a las tablas versiones y evaluaciones de Postgres (cargar_versiones.py).
+# Corre como hook de Helm después de cada install/upgrade: al prender el clúster, la base queda al día con lo que
+# entrenó el VPS. Idempotente; sin el Secret de Postgres termina sin hacer nada.
+cargaVersiones:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi

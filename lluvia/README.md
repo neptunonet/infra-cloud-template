@@ -113,6 +113,14 @@ Probado el 11/11 en la notebook (amd64): entrena dentro del contenedor y la API 
 **CI:** tests y smoke test de `/healthz` como los otros servicios; en los pull requests además construye la versión
 arm64 bajo QEMU y prueba que importe todo; al publicar sube un solo manifiesto con las dos arquitecturas.
 
+## Registro de entrenamientos en Postgres (`cargar_versiones.py`)
+
+El registro de cada entrenamiento es su `metadata.json` en el bucket (lo escribe `train.py`, hoy en el cron del VPS).
+`cargar_versiones.py` lo pasa a `versiones` (una fila por versión, con el metadata completo en `jsonb`) y a
+`evaluaciones` (una fila por receta evaluada: Brier con su IC 90 %, ECE y POD/FAR/CSI por sensibilidad). El chart lo
+corre como Job después de cada `helm install`/`upgrade`, o sea, al prender el clúster (decisión 30). Idempotente: una
+versión que ya está no se vuelve a escribir. Sin `DATABASE_URL` no hace nada.
+
 ## Tests
 
 ```bash
@@ -122,7 +130,8 @@ uv run --python 3.12 --with-requirements requirements.txt --with pytest --with h
 Con datos sintéticos: promoción, vuelta atrás a la tabla, falta de evidencia y línea de comandos (`test_train.py`);
 zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métricas (`test_serve.py`); export válido,
 vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`); registro de pedidos y tramos, rechazados,
-base caída, lotes, cola llena y sin base (`test_registro.py`). 27 en total, más uno contra Postgres real que corre solo con
+base caída, lotes, cola llena y sin base (`test_registro.py`); lectura de versiones, metadata viejo y sin base
+(`test_cargar_versiones.py`). 30 en total, más dos contra Postgres real que corren solo con
 `TEST_DATABASE_URL` (por ejemplo, el Postgres del k3d con `kubectl port-forward svc/postgres 15432:5432`).
 
 ## Archivos
@@ -135,11 +144,11 @@ base caída, lotes, cola llena y sin base (`test_registro.py`). 27 en total, má
 | `train.py` | El ciclo completo |
 | `serve.py` | La API |
 | `registro.py` | Registro de pedidos y predicciones en Postgres, en segundo plano |
+| `cargar_versiones.py` | Pasa los `metadata.json` del bucket a `versiones` y `evaluaciones` (Job del chart) |
 | `exportar.py` | Export diario desde el VPS: valida el CSV del día y lo sube como Parquet |
 | `estaciones.csv` | Coordenadas de las estaciones METAR argentinas (aviationweather.gov, 09/11) |
 
 ## Pendiente
 
-- Registrar cada entrenamiento en Postgres (hoy queda en `metadata.json`).
 - Entrenar ocultando un modelo, para que con 2 de 3 responda el modelo y no la tabla (decisión 16).
 - Job de Kubernetes (CronJob) y Deployment con Helm.
