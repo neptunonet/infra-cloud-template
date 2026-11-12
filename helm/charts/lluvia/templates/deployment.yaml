@@ -53,6 +53,8 @@ spec:
                   key: DATABASE_URL
                   optional: true   # sin Postgres la API anda igual, sin registro
             {{- end }}
+            - name: MUESTRA_TRAMOS
+              value: {{ .Values.baseDatos.muestraTramos | quote }}
             {{- if .Values.secretClaves }}
             - name: CLAVES
               valueFrom:

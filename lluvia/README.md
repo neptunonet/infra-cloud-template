@@ -76,6 +76,11 @@ segundo plano**: `/predict` deja el pedido en una cola y responde; un hilo escri
 pedido y COPY para los tramos). Si la base falla o no da abasto, la API sigue respondiendo y solo se pierde el registro,
 contado en `lluvia_registro_total{resultado=ok|error|descartado}`. Sin `DATABASE_URL` no registra nada.
 
+Cada pedido guarda siempre su **resumen** (`pedidos.resumen`: tramos por fuente, zona y motivo, degradados, sin dato,
+probabilidad media y máxima). El **detalle tramo por tramo** va a `predicciones` solo en uno de cada `MUESTRA_TRAMOS`
+pedidos (por defecto 20; `pedidos.con_detalle` dice cuáles). Guardando todos, el ensayo de carga del 12/11 llevó la base a
+4,6 GB con 40 millones de filas; con la muestra, ~5 % de eso (esquema `002_resumen_y_muestra.sql`).
+
 Medido en la notebook con el modelo real (11/11, 5 pedidos por tamaño): 1 tramo 7–19 ms · 156 tramos 12–14 ms ·
 4.810 tramos 100–160 ms · 5.000 tramos 90–150 ms.
 
@@ -130,8 +135,8 @@ uv run --python 3.12 --with-requirements requirements.txt --with pytest --with h
 Con datos sintéticos: promoción, vuelta atrás a la tabla, falta de evidencia y línea de comandos (`test_train.py`);
 zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métricas (`test_serve.py`); export válido,
 vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`); registro de pedidos y tramos, rechazados,
-base caída, lotes, cola llena y sin base (`test_registro.py`); lectura de versiones, metadata viejo y sin base
-(`test_cargar_versiones.py`). 30 en total, más dos contra Postgres real que corren solo con
+base caída, lotes, cola llena, sin base, resumen y muestra (`test_registro.py`); lectura de versiones, metadata viejo y sin base
+(`test_cargar_versiones.py`). 32 en total, más dos contra Postgres real que corren solo con
 `TEST_DATABASE_URL` (por ejemplo, el Postgres del k3d con `kubectl port-forward svc/postgres 15432:5432`).
 
 ## Archivos
