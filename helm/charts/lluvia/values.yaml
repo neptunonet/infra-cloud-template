@@ -27,6 +27,11 @@ gcp:
   # Fuera de GCP (k3d): Secret con la clave JSON de lluvia-servicio, en la llave `clave.json`.
   secretCredenciales: ""
 
+# Registro de pedidos y predicciones en Postgres (chart postgres): la llave DATABASE_URL de este Secret. Es opcional:
+# si el Secret no existe, la API arranca igual y no registra. Vacío = sin registro.
+baseDatos:
+  secret: postgres
+
 # Claves por consumidor para /predict («consumidor:clave,...»). Nunca en values: Secret con la llave `CLAVES`.
 # Vacío = /predict sin clave (solo para pruebas).
 secretClaves: ""

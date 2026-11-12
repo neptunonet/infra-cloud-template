@@ -70,6 +70,12 @@ Lee el puntero `activa.json` al arrancar y cada `RECARGA_SEG` (300 s): una promo
 reiniciar pods. Con `CLAVES=consumidor:clave,...` pide `X-API-Key`. Logs: una línea JSON por pedido con consumidor,
 cantidad de tramos, fuentes y milisegundos; **sin coordenadas**.
 
+Con `DATABASE_URL` (chart `postgres`) registra cada pedido, también los rechazados, en `pedidos` y cada tramo en
+`predicciones` (p, fuente, zona, degradado, motivo, votos y anticipación; sin coordenadas). Lo hace `registro.py` **en
+segundo plano**: `/predict` deja el pedido en una cola y responde; un hilo escribe en lotes de hasta 50 (un INSERT por
+pedido y COPY para los tramos). Si la base falla o no da abasto, la API sigue respondiendo y solo se pierde el registro,
+contado en `lluvia_registro_total{resultado=ok|error|descartado}`. Sin `DATABASE_URL` no registra nada.
+
 Medido en la notebook con el modelo real (11/11, 5 pedidos por tamaño): 1 tramo 7–19 ms · 156 tramos 12–14 ms ·
 4.810 tramos 100–160 ms · 5.000 tramos 90–150 ms.
 
@@ -115,7 +121,9 @@ uv run --python 3.12 --with-requirements requirements.txt --with pytest --with h
 
 Con datos sintéticos: promoción, vuelta atrás a la tabla, falta de evidencia y línea de comandos (`test_train.py`);
 zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métricas (`test_serve.py`); export válido,
-vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`). 20 en total.
+vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`); registro de pedidos y tramos, rechazados,
+base caída, lotes, cola llena y sin base (`test_registro.py`). 27 en total, más uno contra Postgres real que corre solo con
+`TEST_DATABASE_URL` (por ejemplo, el Postgres del k3d con `kubectl port-forward svc/postgres 15432:5432`).
 
 ## Archivos
 
@@ -126,6 +134,7 @@ vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`
 | `evaluacion.py` | Ventana, evaluación día por día, Brier, calibración, avisos por sensibilidad, intervalos |
 | `train.py` | El ciclo completo |
 | `serve.py` | La API |
+| `registro.py` | Registro de pedidos y predicciones en Postgres, en segundo plano |
 | `exportar.py` | Export diario desde el VPS: valida el CSV del día y lo sube como Parquet |
 | `estaciones.csv` | Coordenadas de las estaciones METAR argentinas (aviationweather.gov, 09/11) |
 

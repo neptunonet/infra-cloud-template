@@ -12,3 +12,5 @@ pydantic==2.9.2
 # Lectura y escritura en gs:// con la misma API que en disco local.
 fsspec==2024.10.0
 gcsfs==2024.10.0
+# Registro de pedidos en Postgres (solo si hay DATABASE_URL). binary: trae libpq, no hace falta instalarla.
+psycopg[binary]==3.2.3
