@@ -55,6 +55,10 @@ spec:
             {{- end }}
             - name: MUESTRA_TRAMOS
               value: {{ .Values.baseDatos.muestraTramos | quote }}
+            - name: CONEXION_MAX_PEDIDOS
+              value: {{ .Values.conexiones.maxPedidos | quote }}
+            - name: CONEXION_MAX_SEG
+              value: {{ .Values.conexiones.maxSeg | quote }}
             {{- if .Values.secretClaves }}
             - name: CLAVES
               valueFrom:

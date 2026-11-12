@@ -70,6 +70,11 @@ Lee el puntero `activa.json` al arrancar y cada `RECARGA_SEG` (300 s): una promo
 reiniciar pods. Con `CLAVES=consumidor:clave,...` pide `X-API-Key`. Logs: una línea JSON por pedido con consumidor,
 cantidad de tramos, fuentes y milisegundos; **sin coordenadas**.
 
+Cierra cada conexión después de `CONEXION_MAX_PEDIDOS` pedidos (100) o `CONEXION_MAX_SEG` segundos (30) con
+`Connection: close`. Kubernetes reparte conexiones, no pedidos: sin esto, un cliente con conexiones persistentes sigue en
+los pods viejos y las réplicas nuevas del HPA no reciben nada (prueba en k3d del 12/11: 7.036 pedidos contra 23.750
+con el cierre). Contador en `lluvia_conexiones_cerradas_total{motivo}`.
+
 Con `DATABASE_URL` (chart `postgres`) registra cada pedido, también los rechazados, en `pedidos` y cada tramo en
 `predicciones` (p, fuente, zona, degradado, motivo, votos y anticipación; sin coordenadas). Lo hace `registro.py` **en
 segundo plano**: `/predict` deja el pedido en una cola y responde; un hilo escribe en lotes de hasta 50 (un INSERT por
@@ -136,7 +141,7 @@ Con datos sintéticos: promoción, vuelta atrás a la tabla, falta de evidencia 
 zonas, fuentes, tope del lote, claves, sin versión activa, sin destino y métricas (`test_serve.py`); export válido,
 vacío, de otro día o con otras columnas, y días repetidos (`test_exportar.py`); registro de pedidos y tramos, rechazados,
 base caída, lotes, cola llena, sin base, resumen y muestra (`test_registro.py`); lectura de versiones, metadata viejo y sin base
-(`test_cargar_versiones.py`). 32 en total, más dos contra Postgres real que corren solo con
+(`test_cargar_versiones.py`); cierre de conexiones (`test_serve.py`). 35 en total, más dos contra Postgres real que corren solo con
 `TEST_DATABASE_URL` (por ejemplo, el Postgres del k3d con `kubectl port-forward svc/postgres 15432:5432`).
 
 ## Archivos
