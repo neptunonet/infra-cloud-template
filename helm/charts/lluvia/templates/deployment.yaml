@@ -1,0 +1,92 @@
+# Deployment (no StatefulSet): la API no guarda nada propio. El modelo lo lee de modelos.destino y el estado vive
+# en el bucket (y, más adelante, en Postgres).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lluvia.fullname" . }}
+  labels:
+    app: {{ include "lluvia.fullname" . }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  # Con el HPA prendido, las réplicas las decide el HPA: fijarlas acá haría que cada `helm upgrade` las pise.
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "lluvia.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "lluvia.fullname" . }}
+        app.kubernetes.io/name: lluvia
+    spec:
+      serviceAccountName: {{ include "lluvia.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000   # appuser del Dockerfile
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: lluvia
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.service.port | quote }}
+            - name: DESTINO
+              value: {{ required "falta modelos.destino" .Values.modelos.destino | quote }}
+            - name: RECARGA_SEG
+              value: {{ .Values.modelos.recargaSeg | quote }}
+            {{- if .Values.gcp.secretCredenciales }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/gcp/clave.json
+            {{- end }}
+            {{- if .Values.secretClaves }}
+            - name: CLAVES
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretClaves }}
+                  key: CLAVES
+            {{- end }}
+          # /healthz da 503 hasta leer el puntero de la versión activa: el pod no recibe tráfico antes.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          # Vida = el proceso responde. No se usa /healthz: si GCS falla al arrancar, reiniciar el pod no lo arregla
+          # y solo sumaría reinicios; el pod queda fuera del Service por la readiness y /healthz muestra la causa.
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.gcp.secretCredenciales }}
+            - name: gcp
+              mountPath: /var/run/gcp
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.gcp.secretCredenciales }}
+        - name: gcp
+          secret:
+            secretName: {{ .Values.gcp.secretCredenciales }}
+        {{- end }}

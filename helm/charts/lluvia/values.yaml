@@ -1,0 +1,47 @@
+# Valores por defecto del chart lluvia, pensados para GKE.
+#   GKE:        --set image.repository=$AR/lluvia --set image.tag=<sha>
+#   k3s / k3d:  -f helm/charts/lluvia/values-k3s.yaml
+# Instalarlo con el nombre de release «lluvia» para que los nombres coincidan con la documentación.
+image:
+  # Artifact Registry: <REGION>-docker.pkg.dev/<PROJECT_ID>/infra-cloud-template/lluvia
+  repository: lluvia
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Solo se usa con autoscaling.enabled=false. Para las pruebas del TF (1, 3 y 5 réplicas) se apaga el HPA y se fija acá.
+replicaCount: 1
+
+service:
+  port: 8083
+
+# Dónde train.py deja `activa.json` y `versiones/`. La API lo relee cada `recargaSeg` segundos: una versión nueva se
+# toma sin reiniciar pods.
+modelos:
+  destino: gs://unlu-ia-armas-lluvia/modelos
+  recargaSeg: 300
+
+# Cómo se autentica contra GCS. Se usa una de las dos:
+gcp:
+  # GKE con Workload Identity: la cuenta de Kubernetes se vincula con esta cuenta de GCP (lluvia-servicio). Sin claves.
+  cuentaServicio: ""   # p. ej. lluvia-servicio@unlu-ia-armas.iam.gserviceaccount.com
+  # Fuera de GCP (k3d): Secret con la clave JSON de lluvia-servicio, en la llave `clave.json`.
+  secretCredenciales: ""
+
+# Claves por consumidor para /predict («consumidor:clave,...»). Nunca en values: Secret con la llave `CLAVES`.
+# Vacío = /predict sin clave (solo para pruebas).
+secretClaves: ""
+
+# Medido en la notebook (11/11): 4.810 tramos en 100–160 ms; ~250 MB con el modelo cargado.
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60

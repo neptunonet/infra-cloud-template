@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lluvia
+description: API del servicio de probabilidad de lluvia por tramo (Trabajo Final). Deployment + HPA + Service.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,18 @@
+# Para un clúster local k3s / k3d. La imagen se importa con `k3d image import` (no hay pull del registry) y GCS se
+# lee con la clave de lluvia-servicio guardada como Secret (fuera de GKE no hay Workload Identity).
+image:
+  repository: lluvia
+  tag: local
+  pullPolicy: Never # ErrImageNeverPull = falta `k3d image import lluvia:local -c tf-lluvia`
+
+gcp:
+  secretCredenciales: lluvia-gcs
+
+# La mini tiene 20 núcleos: los requests chicos dejan que entren las 5 réplicas de las pruebas.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
