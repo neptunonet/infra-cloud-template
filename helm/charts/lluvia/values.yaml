@@ -31,19 +31,23 @@ gcp:
 # si el Secret no existe, la API arranca igual y no registra. Vacío = sin registro.
 baseDatos:
   secret: postgres
+  # Cada pedido guarda su resumen; el detalle tramo por tramo, uno de cada N (1 = todos, 0 = ninguno). Guardando todos,
+  # el ensayo de carga del 12/11 llevó la base a 4,6 GB (40 M filas).
+  muestraTramos: 20
 
 # Claves por consumidor para /predict («consumidor:clave,...»). Nunca en values: Secret con la llave `CLAVES`.
 # Vacío = /predict sin clave (solo para pruebas).
 secretClaves: ""
 
-# Medido en la notebook (11/11): 4.810 tramos en 100–160 ms; ~250 MB con el modelo cargado.
+# Medido en la notebook (11/11): 4.810 tramos en 100–160 ms; ~210 MiB con el modelo cargado. Ensayo de carga (12/11):
+# con 1 réplica y lotes de 4.810, 428 MiB: el límite de 512 quedaba justo.
 resources:
   requests:
     cpu: 250m
     memory: 256Mi
   limits:
     cpu: "1"
-    memory: 512Mi
+    memory: 768Mi
 
 autoscaling:
   enabled: true

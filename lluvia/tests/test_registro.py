@@ -51,6 +51,24 @@ def test_predict_registra_el_pedido_y_cada_tramo(destino):
     assert len(p.predicciones) == 2 and all(len(t) == 7 for t in p.predicciones)
     assert p.predicciones[1][1:] == ("tabla_app", "no_vista", False, "zona_no_vista", 2, 3.0)
     assert p.predicciones[1][0] == r.json()["filas"][1]["p"]
+    assert p.resumen["fuente"] == {"modelo": 1, "tabla_app": 1} and p.resumen["zona"]["no_vista"] == 1
+    assert p.resumen["motivo"] == {"zona_no_vista": 1} and p.resumen["sin_dato"] == 0
+    assert p.resumen["p_max"] == max(f["p"] for f in r.json()["filas"])
+
+
+def test_resumen_siempre_y_detalle_uno_de_cada_n(destino):
+    esc = EscritorFalso()
+    registro = Registro(None, escritor=esc, espera_seg=0.05, muestra=3)
+    with TestClient(serve.crear_app(destino, registro=registro)) as cli:
+        for _ in range(7):
+            assert cli.post("/predict", json={"filas": [fila(PALOMAR), fila(PALOMAR)]}).status_code == 200
+    assert [bool(p.predicciones) for p in esc.pedidos] == [True, False, False, True, False, False, True]
+    assert all(p.resumen["fuente"] == {"modelo": 2} for p in esc.pedidos)
+
+
+def test_muestra_cero_no_guarda_tramos():
+    registro = Registro(None, escritor=EscritorFalso(), muestra=0)
+    assert not any(registro.detalle() for _ in range(5))
 
 
 def test_los_rechazados_tambien_se_registran(destino, monkeypatch):
@@ -104,12 +122,16 @@ def test_escribe_en_postgres_real():
     url = os.environ["TEST_DATABASE_URL"]
     marca = f"test-{datetime.now(timezone.utc).timestamp()}"
     pedido = Pedido(datetime.now(timezone.utc), marca, 2, "v20261112_073004", "logistica_rayos", 12.3, "ok",
+                    resumen={"fuente": {"modelo": 1, "sin_dato": 1}, "p_media": 0.27},
                     predicciones=[(0.27, "modelo", "verificada", False, None, 2, 2.0),
                                   (None, "sin_dato", "verificada", False, "menos_de_dos_modelos", 1, 1.5)])
     EscritorPostgres(url).escribir([pedido])
     with psycopg.connect(url) as con:
         filas = con.execute("SELECT pr.idx, pr.p, pr.fuente, pr.motivo FROM pedidos pe JOIN predicciones pr"
                             " ON pr.pedido_id = pe.id WHERE pe.consumidor = %s ORDER BY pr.idx", (marca,)).fetchall()
+        resumen, detalle = con.execute("SELECT resumen, con_detalle FROM pedidos WHERE consumidor = %s",
+                                       (marca,)).fetchone()
         con.execute("DELETE FROM pedidos WHERE consumidor = %s", (marca,))
     assert [(i, f, m) for i, _, f, m in filas] == [(0, "modelo", None), (1, "sin_dato", "menos_de_dos_modelos")]
     assert filas[0][1] == pytest.approx(0.27) and filas[1][1] is None
+    assert resumen["fuente"]["sin_dato"] == 1 and detalle is True

@@ -11,11 +11,16 @@ reintento sin tope llenaría la memoria del pod). Todo queda contado en `lluvia_
   descartado  pedidos perdidos porque la cola estaba llena (la base no da abasto)
 Sin DATABASE_URL no registra nada (como antes de tener base).
 
+Resumen siempre, detalle por muestra: cada pedido guarda su resumen (cuántos tramos por fuente, zona y motivo, y la
+probabilidad media y máxima); el detalle tramo por tramo va a `predicciones` solo en uno de cada MUESTRA pedidos (por
+defecto 20; 1 = todos, 0 = ninguno). En el ensayo de carga del 12/11 guardar todos los tramos llevó la base a 4,6 GB.
+
 Sin coordenadas (decisión 20): de cada tramo se guardan p, fuente, zona, degradado, motivo, votos y anticipación.
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import queue
 import socket
@@ -40,7 +45,9 @@ class Pedido:
     latencia_ms: float
     resultado: str
     pod: str = field(default_factory=socket.gethostname)
-    # Una tupla por tramo: (p, fuente, zona, degradado, motivo, votos, anticipacion_h). Vacía si el pedido falló.
+    resumen: dict | None = None  # None si el pedido falló
+    # Una tupla por tramo: (p, fuente, zona, degradado, motivo, votos, anticipacion_h). Vacía si el pedido falló o no
+    # entró en la muestra.
     predicciones: list[tuple] = field(default_factory=list)
 
 
@@ -53,6 +60,7 @@ class EscritorPostgres:
 
     def escribir(self, lote: list[Pedido]) -> None:
         import psycopg  # acá y no arriba: sin DATABASE_URL la API ni lo carga
+        from psycopg.types.json import Jsonb
 
         if self.conexion is None or self.conexion.closed:
             self.conexion = psycopg.connect(self.url, connect_timeout=5, application_name="lluvia-api")
@@ -61,8 +69,9 @@ class EscritorPostgres:
                 for p in lote:
                     cur.execute(
                         "INSERT INTO pedidos (recibido_utc, consumidor, filas, version, receta, latencia_ms, resultado,"
-                        " pod) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-                        (p.recibido_utc, p.consumidor, p.filas, p.version, p.receta, p.latencia_ms, p.resultado, p.pod))
+                        " pod, resumen, con_detalle) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                        (p.recibido_utc, p.consumidor, p.filas, p.version, p.receta, p.latencia_ms, p.resultado, p.pod,
+                         Jsonb(p.resumen) if p.resumen is not None else None, bool(p.predicciones)))
                     pedido_id = cur.fetchone()[0]
                     if p.predicciones:
                         with cur.copy("COPY predicciones (pedido_id, idx, p, fuente, zona, degradado, motivo, votos,"
@@ -76,7 +85,9 @@ class EscritorPostgres:
 
 class Registro:
     def __init__(self, url: str | None, contador=None, escritor=None, lote: int = LOTE,
-                 espera_seg: float = ESPERA_SEG, max_cola: int = MAX_COLA):
+                 espera_seg: float = ESPERA_SEG, max_cola: int = MAX_COLA, muestra: int = 1):
+        self.muestra = max(0, int(muestra))
+        self._numero = itertools.count()  # next() es atómico con el GIL: sirve entre los hilos de FastAPI
         self.activo = bool(url) or escritor is not None
         self.escritor = escritor or (EscritorPostgres(url) if url else None)
         self.contador = contador
@@ -87,6 +98,12 @@ class Registro:
     def _contar(self, resultado: str, n: int = 1) -> None:
         if self.contador is not None and n:
             self.contador.labels(resultado=resultado).inc(n)
+
+    def detalle(self) -> bool:
+        """¿Este pedido guarda sus tramos? Uno de cada `muestra` (contado en el pod, así la muestra es pareja)."""
+        if not self.activo or self.muestra == 0:
+            return False
+        return next(self._numero) % self.muestra == 0
 
     def anotar(self, pedido: Pedido) -> None:
         """Nunca bloquea ni falla: si la cola está llena, el pedido se descarta y se cuenta."""

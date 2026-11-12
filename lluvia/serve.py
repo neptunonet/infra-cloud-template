@@ -24,6 +24,7 @@ Variables de entorno:
   RECARGA_SEG  cada cuánto se relee el puntero (por defecto 300)
   PORT         por defecto 8083
   DATABASE_URL opcional, postgresql://...; si está, cada pedido y sus predicciones se guardan en Postgres
+  MUESTRA_TRAMOS  con base: guarda los tramos de uno de cada N pedidos (por defecto 20; 1 = todos, 0 = ninguno)
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ import json
 import os
 import threading
 import time
+from collections import Counter as Conteo
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -201,6 +203,15 @@ class Estado:
         return salida
 
 
+def _resumen(filas: list[dict]) -> dict:
+    """Lo que se guarda de cada pedido aunque no entre en la muestra: conteos y probabilidad, sin coordenadas."""
+    ps = [f["p"] for f in filas if f["p"] is not None]
+    contar = lambda clave: dict(Conteo(f[clave] for f in filas if f[clave] is not None))
+    return {"fuente": contar("fuente"), "zona": contar("zona"), "motivo": contar("motivo"),
+            "degradados": sum(f["degradado"] for f in filas), "sin_dato": len(filas) - len(ps),
+            "p_media": round(sum(ps) / len(ps), 4) if ps else None, "p_max": max(ps) if ps else None}
+
+
 def _claves() -> dict[str, str]:
     """«consumidor:clave,...» -> {clave: consumidor}."""
     out = {}
@@ -212,7 +223,8 @@ def _claves() -> dict[str, str]:
 
 def crear_app(destino: str | None = None, registro: Registro | None = None) -> FastAPI:
     estado = Estado(destino if destino is not None else os.environ.get("DESTINO"))
-    registro = registro or Registro(os.environ.get("DATABASE_URL"), contador=REGISTRADOS)
+    registro = registro or Registro(os.environ.get("DATABASE_URL"), contador=REGISTRADOS,
+                                    muestra=int(os.environ.get("MUESTRA_TRAMOS", "20")))
     recarga = float(os.environ.get("RECARGA_SEG", "300"))
     claves = _claves()
 
@@ -259,8 +271,8 @@ def crear_app(destino: str | None = None, registro: Registro | None = None) -> F
                filas: list[dict] | None = None) -> float:
         """Deja el pedido en la cola del registro y devuelve la latencia en segundos."""
         dt = time.perf_counter() - t0
-        predicciones = []
-        if filas:
+        predicciones, resumen = [], (_resumen(filas) if filas else None)
+        if filas and registro.detalle():
             anticip = ((_utc(pd.Series([f.hora_paso_utc for f in pedido.filas]))
                         - _utc(pd.Series([f.emision_utc for f in pedido.filas]))).dt.total_seconds() / 3600).tolist()
             predicciones = [(f["p"], f["fuente"], f["zona"], f["degradado"], f["motivo"], e.votos, round(a, 2))
@@ -268,7 +280,7 @@ def crear_app(destino: str | None = None, registro: Registro | None = None) -> F
         registro.anotar(PedidoRegistrado(recibido_utc=recibido, consumidor=consumidor, filas=len(pedido.filas),
                                          version=estado.version, receta=estado.receta,
                                          latencia_ms=round(dt * 1000, 2), resultado=resultado,
-                                         predicciones=predicciones))
+                                         resumen=resumen, predicciones=predicciones))
         return dt
 
     @app.post("/predict")
