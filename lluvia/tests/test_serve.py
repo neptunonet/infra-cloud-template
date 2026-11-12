@@ -98,3 +98,28 @@ def test_metricas(cliente):
     cliente.post("/predict", json={"filas": [fila(PALOMAR)]})
     texto = cliente.get("/metrics").text
     assert "lluvia_filas_total" in texto and "lluvia_version_info" in texto
+
+
+def test_cierra_la_conexion_cada_n_pedidos(destino, monkeypatch):
+    monkeypatch.setenv("CONEXION_MAX_PEDIDOS", "3")
+    with TestClient(serve.crear_app(destino)) as c:  # TestClient usa siempre el mismo cliente: una sola «conexión»
+        cierres = [c.get("/healthz").headers.get("connection") for _ in range(7)]
+    assert cierres == [None, None, "close", None, None, "close", None]
+
+
+def test_sin_limite_no_cierra(destino, monkeypatch):
+    monkeypatch.setenv("CONEXION_MAX_PEDIDOS", "0")
+    monkeypatch.setenv("CONEXION_MAX_SEG", "0")
+    with TestClient(serve.crear_app(destino)) as c:
+        assert all(c.get("/healthz").headers.get("connection") is None for _ in range(5))
+
+
+def test_cierra_por_tiempo(destino, monkeypatch):
+    monkeypatch.setenv("CONEXION_MAX_PEDIDOS", "0")
+    monkeypatch.setenv("CONEXION_MAX_SEG", "30")
+    reloj = [1000.0]
+    monkeypatch.setattr(serve.time, "monotonic", lambda: reloj[0])
+    with TestClient(serve.crear_app(destino)) as c:
+        assert c.get("/healthz").headers.get("connection") is None
+        reloj[0] += 31
+        assert c.get("/healthz").headers.get("connection") == "close"

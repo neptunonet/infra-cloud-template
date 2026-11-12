@@ -25,6 +25,8 @@ Variables de entorno:
   PORT         por defecto 8083
   DATABASE_URL opcional, postgresql://...; si está, cada pedido y sus predicciones se guardan en Postgres
   MUESTRA_TRAMOS  con base: guarda los tramos de uno de cada N pedidos (por defecto 20; 1 = todos, 0 = ninguno)
+  CONEXION_MAX_PEDIDOS  cierra cada conexión después de N pedidos (por defecto 100; 0 = sin límite)
+  CONEXION_MAX_SEG      cierra cada conexión después de N segundos (por defecto 30; 0 = sin límite)
 """
 
 from __future__ import annotations
@@ -69,6 +71,8 @@ PROBABILIDAD = Histogram("lluvia_probabilidad", "Probabilidad devuelta (para la 
                          buckets=(0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0))
 REGISTRADOS = Counter("lluvia_registro_total", "Pedidos llevados a Postgres, por resultado", ["resultado"],
                       registry=REGISTRO)
+CONEXIONES_CERRADAS = Counter("lluvia_conexiones_cerradas_total", "Conexiones que la API pidió cerrar (para repartir)",
+                              ["motivo"], registry=REGISTRO)
 VERSION = Gauge("lluvia_version_info", "Versión servida (valor 1)", ["version", "receta"], registry=REGISTRO)
 
 
@@ -212,6 +216,53 @@ def _resumen(filas: list[dict]) -> dict:
             "p_media": round(sum(ps) / len(ps), 4) if ps else None, "p_max": max(ps) if ps else None}
 
 
+class CierreDeConexiones:
+    """Pide cerrar cada conexión después de `max_pedidos` pedidos o `max_seg` segundos (`Connection: close`).
+
+    Kubernetes reparte CONEXIONES entre los pods, no pedidos: un cliente con conexiones persistentes (keep-alive) sigue
+    mandando todo a los pods que había cuando se conectó. En el k3d, el HPA escaló de 1 a 5 réplicas y los 7.036 pedidos
+    los atendió el pod original. Cerrando cada tanto, el cliente reconecta y kube-proxy vuelve a elegir pod, así las
+    réplicas nuevas reciben trabajo. Reconectar cuesta unos ms cada `max_pedidos` pedidos.
+
+    Middleware ASGI puro: la conexión se identifica por la IP y el puerto del cliente (cada conexión TCP tiene el suyo).
+    """
+
+    def __init__(self, app, max_pedidos: int = 100, max_seg: float = 30.0):
+        self.app, self.max_pedidos, self.max_seg = app, max_pedidos, max_seg
+        self.conexiones: dict[tuple, list] = {}  # (ip, puerto) -> [pedidos, abierta_desde]
+
+    def _cerrar(self, cliente) -> str | None:
+        ahora = time.monotonic()
+        if len(self.conexiones) > 1000:  # conexiones que se cerraron solas: no crecer sin tope
+            viejas = 2 * self.max_seg if self.max_seg else 600
+            self.conexiones = {k: v for k, v in self.conexiones.items() if ahora - v[1] < viejas}
+        dato = self.conexiones.setdefault(cliente, [0, ahora])
+        dato[0] += 1
+        if self.max_pedidos and dato[0] >= self.max_pedidos:
+            motivo = "pedidos"
+        elif self.max_seg and ahora - dato[1] >= self.max_seg:
+            motivo = "tiempo"
+        else:
+            return None
+        del self.conexiones[cliente]
+        return motivo
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not scope.get("client") or not (self.max_pedidos or self.max_seg):
+            return await self.app(scope, receive, send)
+        motivo = self._cerrar(tuple(scope["client"]))
+        if motivo is None:
+            return await self.app(scope, receive, send)
+
+        async def enviar(mensaje):
+            if mensaje["type"] == "http.response.start":
+                mensaje["headers"] = [*mensaje.get("headers", []), (b"connection", b"close")]
+                CONEXIONES_CERRADAS.labels(motivo=motivo).inc()
+            await send(mensaje)
+
+        return await self.app(scope, receive, enviar)
+
+
 def _claves() -> dict[str, str]:
     """«consumidor:clave,...» -> {clave: consumidor}."""
     out = {}
@@ -244,6 +295,8 @@ def crear_app(destino: str | None = None, registro: Registro | None = None) -> F
         await asyncio.to_thread(registro.cerrar)
 
     app = FastAPI(title="lluvia", version="1.0.0", lifespan=lifespan)
+    app.add_middleware(CierreDeConexiones, max_pedidos=int(os.environ.get("CONEXION_MAX_PEDIDOS", "100")),
+                       max_seg=float(os.environ.get("CONEXION_MAX_SEG", "30")))
     app.state.estado = estado
     app.state.registro = registro
 

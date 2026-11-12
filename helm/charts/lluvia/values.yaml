@@ -35,6 +35,13 @@ baseDatos:
   # el ensayo de carga del 12/11 llevó la base a 4,6 GB (40 M filas).
   muestraTramos: 20
 
+# Kubernetes reparte conexiones, no pedidos: la API cierra cada conexión después de N pedidos o N segundos para que el
+# cliente reconecte y el Service lo mande a otro pod (sin esto, las réplicas nuevas del HPA no recibían pedidos).
+# 0 = sin límite.
+conexiones:
+  maxPedidos: 100
+  maxSeg: 30
+
 # Claves por consumidor para /predict («consumidor:clave,...»). Nunca en values: Secret con la llave `CLAVES`.
 # Vacío = /predict sin clave (solo para pruebas).
 secretClaves: ""
