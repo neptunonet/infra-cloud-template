@@ -1,0 +1,87 @@
+{{- if .Values.entrenamiento.enabled }}
+{{- $destino := .Values.entrenamiento.destino | default .Values.modelos.destino }}
+# Entrena -> evalúa -> versiona -> decide (train.py) y después registra la versión en Postgres (cargar_versiones.py).
+# La API toma una versión promovida sola, al releer el puntero (modelos.recargaSeg).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "lluvia.fullname" . }}-entrenamiento
+  labels:
+    app: {{ include "lluvia.fullname" . }}
+    componente: entrenamiento
+spec:
+  schedule: {{ .Values.entrenamiento.horario | quote }}
+  timeZone: Etc/UTC
+  suspend: {{ .Values.entrenamiento.suspendido }}
+  concurrencyPolicy: Forbid      # nunca dos entrenamientos a la vez sobre el mismo puntero
+  startingDeadlineSeconds: 3600  # si el clúster estaba apagado a la hora, corre dentro de la hora siguiente o no corre
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app: {{ include "lluvia.fullname" . }}
+        componente: entrenamiento
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: lluvia
+            componente: entrenamiento
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "lluvia.fullname" . }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: entrenamiento
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["sh", "-c", "python -W ignore train.py && python cargar_versiones.py"]
+              env:
+                - name: DATOS
+                  value: {{ required "falta entrenamiento.datos" .Values.entrenamiento.datos | quote }}
+                - name: DESTINO
+                  value: {{ $destino | quote }}
+                {{- if .Values.gcp.secretCredenciales }}
+                - name: GOOGLE_APPLICATION_CREDENTIALS
+                  value: /var/run/gcp/clave.json
+                {{- end }}
+                {{- with .Values.baseDatos.secret }}
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ . }}
+                      key: DATABASE_URL
+                      optional: true
+                {{- end }}
+              resources:
+                {{- toYaml .Values.entrenamiento.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                {{- if .Values.gcp.secretCredenciales }}
+                - name: gcp
+                  mountPath: /var/run/gcp
+                  readOnly: true
+                {{- end }}
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            {{- if .Values.gcp.secretCredenciales }}
+            - name: gcp
+              secret:
+                secretName: {{ .Values.gcp.secretCredenciales }}
+            {{- end }}
+{{- end }}

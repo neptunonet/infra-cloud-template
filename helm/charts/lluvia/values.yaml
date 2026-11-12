@@ -63,3 +63,22 @@ cargaVersiones:
     limits:
       cpu: "1"
       memory: 512Mi
+
+# Servicio de entrenamiento dentro del clúster (consigna 2.3): CronJob con train.py y, al terminar, cargar_versiones.py.
+# Suspendido por defecto: el entrenamiento diario corre en el VPS a las 07:30 UTC (decisión 30) y dos entrenamientos
+# por día se pisarían el puntero activa.json. Para correrlo a mano:
+#   kubectl create job --from=cronjob/lluvia-entrenamiento entrenamiento-manual
+# Para que el clúster reemplace al VPS: entrenamiento.suspendido=false (y sacar el cron del VPS).
+entrenamiento:
+  enabled: true
+  suspendido: true
+  horario: "30 7 * * *"   # UTC, el mismo del VPS
+  datos: gs://unlu-ia-armas-lluvia/datasets/*.parquet
+  destino: ""             # vacío = modelos.destino (lo que sirve la API)
+  resources:              # medido en el VPS: ~280 MB y 30–35 s de evaluación con 1 CPU
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
