@@ -10,7 +10,8 @@ Qué responde cada tramo (decisiones 16, 23 y 24 del TF):
   - zona «verificada» (estación entrenada a <= 10 km) o «region_entrenada» (a <= 150 km): el modelo activo;
   - zona «no_vista»: la tabla de votos de la app;
   - anticipación mayor a 6 h: la tabla de votos;
-  - 2 de los 3 modelos numéricos: la tabla de votos, marcado como degradado;
+  - 2 de los 3 modelos numéricos: si falta WRF, el modelo (sin WRF el Brier no cambia: H10, 13/11); si falta GFS o IFS,
+    la tabla de votos, marcado como degradado;
   - menos de 2 modelos: sin dato.
 Si la receta activa es la tabla (todavía no hay un modelo que le gane), todo sale de la tabla.
 
@@ -160,13 +161,17 @@ class Estado:
         for m in MODELOS:
             mm = pd.Series([f.lluvia_mm_3h.get(m) for f in filas], dtype=float)
             d[f"{m}_media"], d[f"{m}_max"] = mm, mm
-            d[f"ciclo_{m}"] = pd.Series([f.ciclos.get(m) for f in filas], dtype=object)
+            # Sin pronóstico del modelo, tampoco su corrida: la edad queda en 0, como se evaluó en H10.
+            d[f"ciclo_{m}"] = pd.Series([f.ciclos.get(m) if f.lluvia_mm_3h.get(m) is not None else None for f in filas],
+                                        dtype=object)
         d["tormenta_nivel_max"] = d.tormenta_nivel_max.astype(float)
         d["tormenta_dist_min"] = d.tormenta_dist_min.astype(float)
         d["franja_utc"] = d.hora_paso.dt.floor("3h")
         d["anticip_h"] = (d.hora_paso - d.emision_utc).dt.total_seconds() / 3600
         d["votos_media"] = d.votos.astype(float)
         disponibles = d[[f"{m}_media" for m in MODELOS]].notna().sum(axis=1).to_numpy()
+        # H10 (13/11): sin WRF el modelo no pierde nada y le gana a la tabla; sin GFS o IFS empata con ella.
+        degradado = (disponibles == 2) & d.wrf_media.notna().to_numpy()
 
         if len(estaciones):
             dist = _distancia_km(d.lat.to_numpy(), d.lon.to_numpy(), estaciones[:, 0], estaciones[:, 1]).min(axis=1)
@@ -180,7 +185,7 @@ class Estado:
         motivo[d.anticip_h.to_numpy() < 0] = "emision_posterior_al_paso"
         if receta == recetas.REFERENCIA:  # no hay modelo activo: todo sale de la tabla, sea cual sea la zona
             motivo[:] = "receta_activa_tabla"
-        motivo[disponibles == 2] = "dos_modelos"
+        motivo[degradado] = "dos_modelos"
         motivo[disponibles < 2] = "menos_de_dos_modelos"
 
         p = d.votos.map(recetas.TABLA_APP).to_numpy(dtype=float)
@@ -198,7 +203,7 @@ class Estado:
                 "p": None if sin_dato[i] else round(float(p[i]), 4),
                 "fuente": str(fuente[i]),
                 "zona": str(zona[i]),
-                "degradado": bool(disponibles[i] == 2),
+                "degradado": bool(degradado[i]),
                 "motivo": motivo[i],
             })
             FILAS.labels(fuente=str(fuente[i]), zona=str(zona[i])).inc()

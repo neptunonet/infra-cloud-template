@@ -62,7 +62,8 @@ Cada tramo lleva `lat`, `lon`, `hora_paso_utc`, `emision_utc`, `votos`, `lluvia_
 | Estación entrenada a ≤ 10 km (`verificada`) o a ≤ 150 km (`region_entrenada`) | `modelo` | — |
 | Zona no vista (decisiones 23 y 24) | `tabla_app` | `zona_no_vista` |
 | Anticipación mayor a 6 h | `tabla_app` | `anticipacion_mayor_6h` |
-| 2 de 3 modelos (`degradado: true`) | `tabla_app` | `dos_modelos` |
+| 2 de 3 modelos, falta WRF | modelo activo (sin WRF el Brier no cambia: H10) | — |
+| 2 de 3 modelos, falta GFS o IFS (`degradado: true`) | `tabla_app` | `dos_modelos` |
 | Menos de 2 modelos | `sin_dato` (`p: null`) | `menos_de_dos_modelos` |
 | La receta activa es la tabla | `tabla_app` | `receta_activa_tabla` |
 
@@ -160,5 +161,5 @@ base caída, lotes, cola llena, sin base, resumen y muestra (`test_registro.py`)
 
 ## Pendiente
 
-- Entrenar ocultando un modelo, para que con 2 de 3 responda el modelo y no la tabla (decisión 16).
-- Job de Kubernetes (CronJob) y Deployment con Helm.
+- Entrenar ocultando un modelo al azar, para que también responda el modelo cuando falta GFS o IFS (decisión 16). Medido
+  el 13/11 (`TRABAJO FINAL/poc/paso8_modelo_oculto.py`): así queda empatado con la tabla; hoy solo falta WRF (0,2 %).

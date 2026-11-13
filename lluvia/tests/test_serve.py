@@ -57,11 +57,19 @@ def test_zonas_y_fuentes(cliente):
 
 
 def test_casos_que_no_usan_el_modelo(cliente):
-    filas = [fila(PALOMAR, anticip_h=8), fila(PALOMAR, modelos=("gfs", "ifs")), fila(PALOMAR, modelos=("gfs",))]
+    filas = [fila(PALOMAR, anticip_h=8), fila(PALOMAR, modelos=("gfs", "wrf")), fila(PALOMAR, modelos=("gfs",))]
     f = cliente.post("/predict", json={"filas": filas}).json()["filas"]
     assert f[0]["fuente"] == "tabla_app" and f[0]["motivo"] == "anticipacion_mayor_6h"
-    assert f[1]["fuente"] == "tabla_app" and f[1]["degradado"]
+    assert f[1]["fuente"] == "tabla_app" and f[1]["degradado"] and f[1]["motivo"] == "dos_modelos"
     assert f[2]["fuente"] == "sin_dato" and f[2]["p"] is None
+
+
+def test_sin_wrf_responde_el_modelo(cliente):
+    # H10 (13/11): sin WRF el Brier no cambia; sin GFS o IFS sigue la tabla.
+    filas = [fila(PALOMAR, modelos=("gfs", "ifs")), fila(PALOMAR, modelos=("ifs", "wrf"))]
+    f = cliente.post("/predict", json={"filas": filas}).json()["filas"]
+    assert f[0]["fuente"] == "modelo" and not f[0]["degradado"] and f[0]["motivo"] is None
+    assert f[1]["fuente"] == "tabla_app" and f[1]["degradado"]
 
 
 def test_mas_lluvia_prevista_da_mas_probabilidad(cliente):
