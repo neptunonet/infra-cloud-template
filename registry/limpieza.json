@@ -1,0 +1,17 @@
+[
+  {
+    "name": "conservar-versiones",
+    "action": {"type": "Keep"},
+    "condition": {"tagState": "tagged", "tagPrefixes": ["v"]}
+  },
+  {
+    "name": "conservar-recientes",
+    "action": {"type": "Keep"},
+    "mostRecentVersions": {"keepCount": 10}
+  },
+  {
+    "name": "borrar-viejas",
+    "action": {"type": "Delete"},
+    "condition": {"tagState": "any", "olderThan": "30d"}
+  }
+]
