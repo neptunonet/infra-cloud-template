@@ -4,6 +4,9 @@ Servicio de modelo para Clima Rutero: dado lo que prevén GFS, ECMWF IFS y WRF-S
 rayos cercanos, devuelve la probabilidad de lluvia. El umbral de aviso no lo fija el servicio: lo elige quien usa
 la app (decisiones 25 y 26 del TF).
 
+**Despliegue de punta a punta** (bucket, CI, GKE, observabilidad, pruebas, apagado y k3d): `docs/trabajo-final.md`.
+Pedido de ejemplo: `ejemplo-predict.json`.
+
 ## Entrenamiento (`train.py`)
 
 ```bash
