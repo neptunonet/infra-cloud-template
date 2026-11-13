@@ -144,7 +144,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(lluvia_pedidos_total{resultado=\"ok\"}[$__rate_interval]))",
+          "expr": "(sum(rate(lluvia_pedidos_total{resultado=\"ok\"}[$__rate_interval]))) or vector(0)",
           "legendFormat": "ok",
           "instant": true
         }

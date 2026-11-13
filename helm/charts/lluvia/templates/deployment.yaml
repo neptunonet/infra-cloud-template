@@ -72,15 +72,21 @@ spec:
               path: /healthz
               port: http
             periodSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 3
           # Vida = el proceso responde. No se usa /healthz: si GCS falla al arrancar, reiniciar el pod no lo arregla
           # y solo sumaría reinicios; el pod queda fuera del Service por la readiness y /healthz muestra la causa.
+          # Margen amplio (GKE, 13/11): con 1 réplica saturada por lotes de 4.810 tramos, la respuesta a / tardó más de
+          # 1 s (el valor por defecto), el kubelet reinició el pod dos veces en plena carga y el 36 % de los pedidos
+          # falló. Un pod lento no está muerto: reiniciarlo pierde los pedidos en curso y agrega el arranque.
           livenessProbe:
             httpGet:
               path: /
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
