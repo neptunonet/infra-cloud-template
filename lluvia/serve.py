@@ -305,24 +305,27 @@ def crear_app(destino: str | None = None, registro: Registro | None = None) -> F
     app.state.estado = estado
     app.state.registro = registro
 
+    # Los endpoints livianos son `async def`: corren en el bucle de eventos y no hacen cola detrás de los /predict, que
+    # son `def` y van al pool de hilos. Con 1 réplica saturada en GKE, `/` tardaba más de 1 s y la liveness reiniciaba
+    # el pod (decisión 37). No hacen E/S bloqueante: solo leen el estado en memoria.
     @app.get("/")
-    def indice() -> dict:
+    async def indice() -> dict:
         return {"servicio": "lluvia", "endpoints": ["POST /predict", "GET /version", "GET /healthz", "GET /metrics"]}
 
     @app.get("/healthz")
-    def healthz(response: Response) -> dict:
+    async def healthz(response: Response) -> dict:
         if not estado.listo:
             response.status_code = 503
             return {"estado": "cargando", "error": estado.error}
         return {"estado": "ok", "version": estado.version, "receta": estado.receta}
 
     @app.get("/version")
-    def version() -> dict:
+    async def version() -> dict:
         return {"version": estado.version, "receta": estado.receta, "cargado_utc": estado.cargado_utc,
                 "error_ultima_recarga": estado.error}
 
     @app.get("/metrics")
-    def metrics() -> Response:
+    async def metrics() -> Response:
         return Response(generate_latest(REGISTRO), media_type=CONTENT_TYPE_LATEST)
 
     def anotar(pedido: Pedido, t0: float, recibido: datetime, resultado: str, consumidor: str | None,
