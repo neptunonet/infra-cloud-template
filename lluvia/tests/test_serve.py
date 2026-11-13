@@ -131,3 +131,12 @@ def test_cierra_por_tiempo(destino, monkeypatch):
         assert c.get("/healthz").headers.get("connection") is None
         reloj[0] += 31
         assert c.get("/healthz").headers.get("connection") == "close"
+
+
+def test_endpoints_livianos_no_esperan_al_pool(destino):
+    # Decisión 37: con /predict saturando el pool de hilos, / y /healthz tienen que contestar desde el bucle de eventos.
+    import inspect
+
+    rutas = {r.path: r.endpoint for r in serve.crear_app(destino).routes if hasattr(r, "endpoint")}
+    assert all(inspect.iscoroutinefunction(rutas[p]) for p in ("/", "/healthz", "/version", "/metrics"))
+    assert not inspect.iscoroutinefunction(rutas["/predict"])  # CPU: va al pool, no bloquea el bucle
