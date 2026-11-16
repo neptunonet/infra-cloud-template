@@ -54,3 +54,15 @@ variable "workload_identity" {
   type        = bool
   default     = true
 }
+
+variable "monitoreo_componentes" {
+  description = "Componentes que GKE manda a Cloud Monitoring. SYSTEM_COMPONENTS es gratis; los demás (kube-state-metrics, etc.) se cobran."
+  type        = list(string)
+  default     = ["SYSTEM_COMPONENTS"]
+}
+
+variable "managed_prometheus" {
+  description = "Managed Service for Prometheus de Google (se cobra por muestra). El TF usa kube-prometheus dentro del clúster."
+  type        = bool
+  default     = false
+}

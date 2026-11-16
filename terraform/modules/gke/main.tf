@@ -30,6 +30,16 @@ resource "google_container_cluster" "this" {
       workload_pool = "${var.project_id}.svc.id.goog"
     }
   }
+
+  # Métricas que GKE manda a Cloud Monitoring (TF, 16/11). Por defecto los clústeres nuevos suman el paquete de
+  # kube-state-metrics y Managed Prometheus, que se cobran: en la sesión del 13/11 fueron US$ 0,06 aunque el monitoreo lo
+  # hace kube-prometheus dentro del clúster. Quedan solo los componentes del sistema (sin costo).
+  monitoring_config {
+    enable_components = var.monitoreo_componentes
+    managed_prometheus {
+      enabled = var.managed_prometheus
+    }
+  }
 }
 
 resource "google_container_node_pool" "primary" {

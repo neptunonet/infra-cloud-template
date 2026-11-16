@@ -13,3 +13,31 @@ spec:
     - name: http
       port: {{ .Values.service.port }}
       targetPort: http
+{{- if .Values.externo.habilitado }}
+{{- if not .Values.secretClaves }}
+{{- fail "externo.habilitado pide secretClaves: la API expuesta afuera del clúster tiene que pedir X-API-Key" }}
+{{- end }}
+{{- if not .Values.externo.ipsPermitidas }}
+{{- fail "externo.habilitado pide externo.ipsPermitidas (p. ej. la IP pública del VPS en /32)" }}
+{{- end }}
+---
+# Servicio aparte para un consumidor de afuera del clúster (el VPS de Clima Rutero, H12): balanceador de red de GCP
+# con la lista de IP permitidas, y la API pidiendo clave. El Service de arriba (ClusterIP) sigue para k6 y Prometheus.
+# Es HTTP sin TLS: sirve para medir en una sesión corta, no para producción (ahí: Ingress con certificado).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lluvia.fullname" . }}-externo
+  labels:
+    app: {{ include "lluvia.fullname" . }}
+spec:
+  type: LoadBalancer
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.externo.ipsPermitidas | nindent 4 }}
+  selector:
+    app: {{ include "lluvia.fullname" . }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}
