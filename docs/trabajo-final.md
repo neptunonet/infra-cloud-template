@@ -138,6 +138,25 @@ La grilla apaga el HPA mientras corre y lo vuelve a prender al final. El CronJob
 VPS); para no pisar `activa.json`, antes apuntarlo a un prefijo de prueba:
 `helm upgrade lluvia helm/charts/lluvia --reuse-values --set entrenamiento.destino=gs://<PROYECTO>-lluvia/modelos/pruebas`.
 
+### Latencia desde el VPS (H12)
+
+La API se expone afuera del clúster solo para esta medición: un Service `LoadBalancer` aparte, con la IP del VPS como
+única permitida y la API pidiendo clave (es HTTP sin TLS: no es para producción).
+
+```bash
+CLAVE="$(openssl rand -hex 24)"                     # guardarla en un archivo 600 en la máquina local y en el VPS
+kubectl create secret generic lluvia-claves --from-literal=CLAVES="vps:$CLAVE"
+helm upgrade lluvia helm/charts/lluvia --reuse-values --set secretClaves=lluvia-claves \
+  --set externo.habilitado=true --set 'externo.ipsPermitidas={<IP pública del VPS>/32}' --wait
+kubectl get svc lluvia-externo -w                   # esperar la EXTERNAL-IP
+```
+
+En el VPS, con `loadtest/lluvia.js`, `loadtest/latencia-vps.sh` y `lluvia/ejemplo-predict.json` en una carpeta:
+
+```bash
+URL=http://<EXTERNAL-IP> CLAVE_ARCHIVO=<archivo con la clave> ./latencia-vps.sh > h12.txt
+```
+
 ## 7. Apagar (el mismo día)
 
 GitHub → **Actions → deploy → Run workflow** con `accion = apagar` (aprobar `vaciar` y `terraform`). `vaciar` desinstala
