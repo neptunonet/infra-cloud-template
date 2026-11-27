@@ -1,0 +1,46 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+
+== A) Un solo corte ==
+Prueba: 7 días, 426 casos, 46 con lluvia, 3 días con lluvia
+modelo           Brier           IC 90 %    POD    FAR    CSI
+tabla_app       0.0643     0.026 a 0.105   0.94   0.61   0.39
+tabla_recal     0.0632     0.023 a 0.104   0.65   0.51   0.38
+logistica       0.0621     0.023 a 0.104   0.70   0.53   0.39
+Brier logística menos tabla_app: -0.0022 (IC 90 %: -0.0071 a +0.0028); negativa = gana la logística
+Brier logística menos tabla_recal: -0.0011 (IC 90 %: -0.0032 a +0.0007); negativa = gana la logística
+Días en que la logística le gana a la tabla de la app: 5 de 7
+
+== B) Día por día (reentrenando cada día) ==
+Prueba: 14 días, 850 casos, 102 con lluvia, 10 días con lluvia
+modelo           Brier           IC 90 %    POD    FAR    CSI
+tabla_app       0.0768     0.052 a 0.102   0.92   0.68   0.31
+tabla_recal     0.0754     0.050 a 0.101   0.66   0.61   0.33
+logistica       0.0726     0.045 a 0.100   0.68   0.59   0.34
+Brier logística menos tabla_app: -0.0042 (IC 90 %: -0.0078 a -0.0004); negativa = gana la logística
+Brier logística menos tabla_recal: -0.0028 (IC 90 %: -0.0054 a -0.0005); negativa = gana la logística
+Días en que la logística le gana a la tabla de la app: 9 de 14
+
+Coeficientes (todos los días, variables estandarizadas):
+votos_media      1.01
+gfs_max_log      0.84
+gfs_media_log   -0.55
+hora_cos         0.29
+wrf_media_log    0.27
+wrf_max_log     -0.26
+ifs_media_log    0.24
+hora_sin         0.23
+ifs_edad_h       0.15
+ifs_max_log      0.08
+wrf_edad_h      -0.06
+anticip_h        0.02
+gfs_edad_h       0.02
+
+Calibración de la logística (prueba B):
+                 casos  dicho  observado
+tramo                                   
+(-0.001, 0.05]  294.62   0.03       0.01
+(0.05, 0.1]     263.71   0.07       0.04
+(0.1, 0.2]      120.53   0.14       0.17
+(0.2, 0.4]       80.73   0.28       0.18
+(0.4, 0.6]       39.29   0.50       0.48
+(0.6, 1.0]       51.12   0.77       0.71

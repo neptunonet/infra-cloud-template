@@ -1,0 +1,24 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+Prueba: 14 días, 850 casos, 102 con lluvia
+
+== Aviso «posible» (1 voto o más) ==
+quién avisa                          POD   FAR   CSI  % franjas con aviso
+App (votos)                         0.92  0.68  0.31                35.0%
+Logística, umbral en prueba 0.08    0.92  0.73  0.26                41.1%
+Logística, umbral operativo         0.86  0.63  0.35                27.8%
+Umbral operativo: entre 0.09 y 0.18 según el día (mediana 0.11)
+  POD log_prueba menos app: +0.000 (IC 90 %: -0.016 a +0.018)
+  FAR log_prueba menos app: +0.047 (IC 90 %: +0.014 a +0.072)
+  POD log_operativo menos app: -0.058 (IC 90 %: -0.102 a -0.023)
+  FAR log_operativo menos app: -0.056 (IC 90 %: -0.078 a -0.034)
+
+== Aviso «probable» (2 votos o más) ==
+quién avisa                          POD   FAR   CSI  % franjas con aviso
+App (votos)                         0.65  0.55  0.36                17.5%
+Logística, umbral en prueba 0.23    0.65  0.56  0.36                17.7%
+Logística, umbral operativo         0.62  0.51  0.37                15.3%
+Umbral operativo: entre 0.24 y 0.36 según el día (mediana 0.26)
+  POD log_prueba menos app: +0.000 (IC 90 %: -0.018 a +0.028)
+  FAR log_prueba menos app: +0.004 (IC 90 %: -0.013 a +0.020)
+  POD log_operativo menos app: -0.034 (IC 90 %: -0.058 a -0.011)
+  FAR log_operativo menos app: -0.039 (IC 90 %: -0.070 a -0.015)

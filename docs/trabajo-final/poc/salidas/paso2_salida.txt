@@ -1,0 +1,19 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+
+Tabla ajustada con 14 días (2026-10-19 a 2026-11-01): 0 votos = 0.05, 1 votos = 0.17, 2 votos = 0.38, 3 votos = 0.71
+
+== A) Un solo corte ==
+Prueba: 7 días (2026-11-03 a 2026-11-09), 426 casos, 46 con lluvia, 3 días con lluvia
+referencia       Brier           IC 90 %    POD    FAR    CSI
+climatologia    0.1033     0.052 a 0.161   0.00    nan   0.00
+tabla_app       0.0643     0.026 a 0.103   0.94   0.61   0.39
+tabla_recal     0.0632     0.023 a 0.105   0.65   0.51   0.38
+Diferencia de Brier, recalibrada menos app: -0.0011 (IC 90 %: -0.0064 a +0.0039); negativa = gana la recalibrada
+
+== B) Día por día (reentrenando cada día) ==
+Prueba: 14 días (2026-10-27 a 2026-11-09), 850 casos, 102 con lluvia, 10 días con lluvia
+referencia       Brier           IC 90 %    POD    FAR    CSI
+climatologia    0.1126     0.078 a 0.149   0.11   0.94   0.04
+tabla_app       0.0768     0.052 a 0.103   0.92   0.68   0.31
+tabla_recal     0.0754     0.049 a 0.101   0.66   0.61   0.33
+Diferencia de Brier, recalibrada menos app: -0.0014 (IC 90 %: -0.0045 a +0.0017); negativa = gana la recalibrada

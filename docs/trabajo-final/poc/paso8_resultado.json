@@ -1,0 +1,218 @@
+{
+ "ventana": {
+  "dias": [
+   "2026-10-30",
+   "2026-10-31",
+   "2026-11-01",
+   "2026-11-02",
+   "2026-11-03",
+   "2026-11-04",
+   "2026-11-05",
+   "2026-11-06",
+   "2026-11-07",
+   "2026-11-08",
+   "2026-11-09",
+   "2026-11-10",
+   "2026-11-11",
+   "2026-11-12"
+  ],
+  "desde": "2026-10-30",
+  "hasta": "2026-11-12",
+  "n_dias": 14,
+  "casos": 856,
+  "casos_con_lluvia": 104,
+  "dias_con_lluvia": 9,
+  "evidencia_suficiente": true
+ },
+ "brier": {
+  "completo": 0.0679,
+  "tabla_3": 0.0728,
+  "log_normal_sin_gfs": 0.0785,
+  "log_masc_sin_gfs": 0.0763,
+  "tabla_2_sin_gfs": 0.0804,
+  "log_normal_sin_ifs": 0.0839,
+  "log_masc_sin_ifs": 0.0765,
+  "tabla_2_sin_ifs": 0.0779,
+  "log_normal_sin_wrf": 0.069,
+  "log_masc_sin_wrf": 0.0679,
+  "tabla_2_sin_wrf": 0.075
+ },
+ "comparaciones": [
+  {
+   "a": "tabla_3",
+   "b": "completo",
+   "dif_brier": 0.0049,
+   "ic90": [
+    0.0012,
+    0.0082
+   ],
+   "a_mejor": false,
+   "a_peor": true
+  },
+  {
+   "a": "log_normal_sin_gfs",
+   "b": "completo",
+   "dif_brier": 0.0106,
+   "ic90": [
+    0.0039,
+    0.0181
+   ],
+   "a_mejor": false,
+   "a_peor": true
+  },
+  {
+   "a": "log_masc_sin_gfs",
+   "b": "completo",
+   "dif_brier": 0.0084,
+   "ic90": [
+    0.0051,
+    0.0125
+   ],
+   "a_mejor": false,
+   "a_peor": true
+  },
+  {
+   "a": "log_masc_sin_gfs",
+   "b": "tabla_2_sin_gfs",
+   "dif_brier": -0.0041,
+   "ic90": [
+    -0.0098,
+    0.0003
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_normal_sin_gfs",
+   "b": "tabla_2_sin_gfs",
+   "dif_brier": -0.002,
+   "ic90": [
+    -0.0072,
+    0.0026
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_masc_sin_gfs",
+   "b": "log_normal_sin_gfs",
+   "dif_brier": -0.0022,
+   "ic90": [
+    -0.0062,
+    0.0018
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_normal_sin_ifs",
+   "b": "completo",
+   "dif_brier": 0.016,
+   "ic90": [
+    0.0041,
+    0.0292
+   ],
+   "a_mejor": false,
+   "a_peor": true
+  },
+  {
+   "a": "log_masc_sin_ifs",
+   "b": "completo",
+   "dif_brier": 0.0086,
+   "ic90": [
+    0.0015,
+    0.0166
+   ],
+   "a_mejor": false,
+   "a_peor": true
+  },
+  {
+   "a": "log_masc_sin_ifs",
+   "b": "tabla_2_sin_ifs",
+   "dif_brier": -0.0014,
+   "ic90": [
+    -0.0053,
+    0.0024
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_normal_sin_ifs",
+   "b": "tabla_2_sin_ifs",
+   "dif_brier": 0.006,
+   "ic90": [
+    -0.0015,
+    0.0139
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_masc_sin_ifs",
+   "b": "log_normal_sin_ifs",
+   "dif_brier": -0.0074,
+   "ic90": [
+    -0.0134,
+    -0.0018
+   ],
+   "a_mejor": true,
+   "a_peor": false
+  },
+  {
+   "a": "log_normal_sin_wrf",
+   "b": "completo",
+   "dif_brier": 0.0011,
+   "ic90": [
+    -0.0018,
+    0.0042
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_masc_sin_wrf",
+   "b": "completo",
+   "dif_brier": 0.0,
+   "ic90": [
+    -0.0038,
+    0.0031
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  },
+  {
+   "a": "log_masc_sin_wrf",
+   "b": "tabla_2_sin_wrf",
+   "dif_brier": -0.0071,
+   "ic90": [
+    -0.0125,
+    -0.0023
+   ],
+   "a_mejor": true,
+   "a_peor": false
+  },
+  {
+   "a": "log_normal_sin_wrf",
+   "b": "tabla_2_sin_wrf",
+   "dif_brier": -0.006,
+   "ic90": [
+    -0.0104,
+    -0.0024
+   ],
+   "a_mejor": true,
+   "a_peor": false
+  },
+  {
+   "a": "log_masc_sin_wrf",
+   "b": "log_normal_sin_wrf",
+   "dif_brier": -0.0011,
+   "ic90": [
+    -0.0034,
+    0.0009
+   ],
+   "a_mejor": false,
+   "a_peor": false
+  }
+ ]
+}

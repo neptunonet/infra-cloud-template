@@ -1,0 +1,19 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+Prueba: 14 días, 850 casos, 102 con lluvia
+
+aviso si                 POD   FAR  falsas por acierto  % franjas con aviso
+App: 1 voto o más       0.92  0.68                 2.2                35.0%
+App: 2 votos o más      0.65  0.55                 1.2                17.5%
+Modelo: P >= 0.05       0.98  0.82                 4.5                64.3%
+Modelo: P >= 0.08       0.92  0.73                 2.7                40.7%
+Modelo: P >= 0.10       0.88  0.69                 2.2                34.3%
+Modelo: P >= 0.15       0.78  0.63                 1.7                25.5%
+Modelo: P >= 0.20       0.70  0.59                 1.4                20.4%
+Modelo: P >= 0.25       0.65  0.53                 1.1                16.6%
+Modelo: P >= 0.30       0.62  0.48                 0.9                14.2%
+Modelo: P >= 0.40       0.55  0.38                 0.6                10.7%
+Modelo: P >= 0.50       0.47  0.32                 0.5                 8.3%
+
+Umbral recalculado cada día para un POD objetivo (con los días de entrenamiento):
+  POD 80%: entre 0.14 y 0.24 (mediana 0.16)
+  POD 90%: entre 0.08 y 0.13 (mediana 0.08)

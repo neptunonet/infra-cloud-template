@@ -1,5 +1,6 @@
 import json
 import re
+from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -80,3 +81,23 @@ def test_main_por_linea_de_comandos(csv, tmp_path, capsys):
     assert train.main(["--datos", csv("aprende"), "--destino", str(tmp_path / "a"), "--candidatas", "logistica_rayos"]) == 0
     log = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     assert log["evento"] == "entrenamiento" and log["promovida"]
+
+
+MUESTRA_RELEASE = Path(__file__).parent / "muestras" / "muestra-release-dataset-2026-11.parquet"
+
+
+def test_entrena_con_el_dataset_publicado(tmp_path):
+    """El dataset de la release no trae `es_api` (se quitaron las filas de pedidos de usuarios): tiene que entrenar igual.
+
+    La muestra son las filas a <= 10 km del parquet publicado en la release dataset-2026-11 (las que usa el
+    entrenamiento), sin tocar las columnas. Los números son los de la versión v20261119_073004 del informe.
+    """
+    crudo = pd.read_parquet(MUESTRA_RELEASE)
+    assert "es_api" not in crudo.columns
+
+    m = train.correr(str(MUESTRA_RELEASE), str(tmp_path / "artefactos"), candidatas=("logistica_rayos",))
+
+    recetas = m["evaluacion"]["recetas"]
+    assert recetas["tabla_app"]["brier"] == pytest.approx(0.0637, abs=5e-4)
+    assert recetas["logistica_rayos"]["brier"] == pytest.approx(0.0605, abs=5e-4)
+    assert m["decision"]["promovida"] and m["receta"] == "logistica_rayos"
