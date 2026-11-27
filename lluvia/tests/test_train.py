@@ -83,7 +83,7 @@ def test_main_por_linea_de_comandos(csv, tmp_path, capsys):
     assert log["evento"] == "entrenamiento" and log["promovida"]
 
 
-MUESTRA_RELEASE = Path(__file__).parent / "datos" / "muestra-release-dataset-2026-11.parquet"
+MUESTRA_RELEASE = Path(__file__).parent / "muestras" / "muestra-release-dataset-2026-11.parquet"
 
 
 def test_entrena_con_el_dataset_publicado(tmp_path):
