@@ -1,0 +1,15 @@
+# H12 — 2026-11-16T13:47:04Z — desde instance-20260401-0133
+healthz conexion: p50 25.9 ms · p95 27.4 ms · min 25.3 ms
+healthz primer_byte: p50 52.8 ms · p95 55.1 ms · min 51.8 ms
+healthz total: p50 52.9 ms · p95 55.1 ms · min 51.9 ms
+healthz codigos HTTP: ['200'] (n=30)
+predict_3 conexion: p50 25.9 ms · p95 27.1 ms · min 25.1 ms
+predict_3 primer_byte: p50 80.8 ms · p95 106.3 ms · min 77.4 ms
+predict_3 total: p50 80.9 ms · p95 106.4 ms · min 77.6 ms
+predict_3 codigos HTTP: ['200'] (n=30)
+# sin clave (tiene que dar 401):
+401
+# k6: 156 tramos, 1 usuario(s), 60 s
+{"resultado_k6":true,"filas":156,"vus":1,"duracion_s":60.67,"pedidos":617,"pedidos_s":10.17,"tramos_s":1586,"ms_prom":97.46,"ms_p50":78.3,"ms_p90":139.98,"ms_p95":237.89,"ms_p99":323.07,"ms_max":416.43,"errores":0,"checks_ok":100}
+# k6: 156 tramos, 5 usuario(s), 60 s
+{"resultado_k6":true,"filas":156,"vus":5,"duracion_s":60.81,"pedidos":1157,"pedidos_s":19.03,"tramos_s":2968,"ms_prom":259.8,"ms_p50":252.86,"ms_p90":432.88,"ms_p95":490.59,"ms_p99":614.22,"ms_max":904.43,"errores":0,"checks_ok":100}

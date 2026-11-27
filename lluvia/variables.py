@@ -1,7 +1,7 @@
 """Carga del dataset exportado por Clima Rutero y armado de las variables del modelo.
 
 Lo usan el entrenamiento (train.py) y, más adelante, la API, para que las variables se calculen igual en los dos
-lados. El dataset tiene una fila por estación METAR x franja de 3 h x emisión (ver TRABAJO FINAL/poc/README.md).
+lados. El dataset tiene una fila por estación METAR x franja de 3 h x emisión (ver docs/trabajo-final/poc/README.md).
 """
 
 from __future__ import annotations
@@ -38,6 +38,10 @@ def _a_bool(s: pd.Series) -> pd.Series:
 def filtrar(d: pd.DataFrame) -> pd.DataFrame:
     """Aplica los filtros y agrega la etiqueta, el día (hora argentina), el caso y el peso por caso."""
     d = d.copy()
+    # La copia publicada del dataset (release dataset-AAAA-MM) no trae `es_api`: se le quitaron las filas de pedidos de
+    # usuarios y, con ellas, la columna. Si falta, todas las filas son de rutas monitoreadas.
+    if "es_api" not in d:
+        d["es_api"] = False
     for c in BOOLEANAS:
         if c in d:
             d[c] = _a_bool(d[c])

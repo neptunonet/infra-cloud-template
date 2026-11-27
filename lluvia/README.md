@@ -165,4 +165,4 @@ base caída, lotes, cola llena, sin base, resumen y muestra (`test_registro.py`)
 ## Pendiente
 
 - Entrenar ocultando un modelo al azar, para que también responda el modelo cuando falta GFS o IFS (decisión 16). Medido
-  el 13/11 (`TRABAJO FINAL/poc/paso8_modelo_oculto.py`): así queda empatado con la tabla; hoy solo falta WRF (0,2 %).
+  el 13/11 (`docs/trabajo-final/poc/paso8_modelo_oculto.py`): así queda empatado con la tabla; hoy solo falta WRF (0,2 %).

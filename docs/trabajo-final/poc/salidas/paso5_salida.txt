@@ -1,0 +1,54 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+
+Conjunto limpio: frecuencia de lluvia según pronóstico y aviso de rayos (cada caso pesa 1)
+                            casos  llovio
+pronostico     aviso                     
+dice lluvia    0 nada      206.25    0.30
+               1 atención    3.58    0.63
+               2 llegando   11.42    0.93
+no dice lluvia 0 nada      400.25    0.01
+               1 atención    0.50    0.00
+
+== Todo (14 días de prueba) ==
+20929 emisiones, 850 casos, 102 con lluvia, 10 días con lluvia
+modelo           Brier           IC 90 %
+tabla_app       0.0768     0.052 a 0.104
+sin_rayos       0.0726     0.047 a 0.102
+con_rayos       0.0708     0.043 a 0.095
+Brier con rayos menos sin rayos: -0.0018 (IC 90 %: -0.0043 a +0.0001); negativa = los rayos suman
+aviso «posible»          POD   FAR  % con aviso
+App (votos)             0.92  0.68        35.0%
+Logística sin rayos     0.92  0.73        41.1%
+Logística con rayos     0.92  0.73        40.4%
+FAR con rayos menos sin rayos: -0.004 (IC 90 %: -0.007 a -0.002)
+
+== Solo emisiones con aviso calculado ==
+8908 emisiones, 628 casos, 78 con lluvia, 8 días con lluvia
+modelo           Brier           IC 90 %
+tabla_app       0.0741     0.050 a 0.097
+sin_rayos       0.0684     0.044 a 0.095
+con_rayos       0.0638     0.041 a 0.088
+Brier con rayos menos sin rayos: -0.0046 (IC 90 %: -0.0099 a -0.0002); negativa = los rayos suman
+aviso «posible»          POD   FAR  % con aviso
+App (votos)             0.96  0.67        35.8%
+Logística sin rayos     0.96  0.72        42.9%
+Logística con rayos     0.96  0.70        40.3%
+FAR con rayos menos sin rayos: -0.018 (IC 90 %: -0.028 a -0.010)
+
+== Limpio: aviso calculado y emitido antes de la franja ==
+2268 emisiones, 622 casos, 77 con lluvia, 8 días con lluvia
+modelo           Brier           IC 90 %
+tabla_app       0.0734     0.049 a 0.100
+sin_rayos       0.0703     0.044 a 0.101
+con_rayos       0.0618     0.038 a 0.086
+Brier con rayos menos sin rayos: -0.0084 (IC 90 %: -0.0173 a -0.0013); negativa = los rayos suman
+aviso «posible»          POD   FAR  % con aviso
+App (votos)             0.96  0.67        35.6%
+Logística sin rayos     0.96  0.73        44.0%
+Logística con rayos     0.96  0.70        40.2%
+FAR con rayos menos sin rayos: -0.026 (IC 90 %: -0.047 a -0.008)
+
+Coeficientes de las variables de rayos (todos los días, estandarizadas):
+ray_calculado   -0.03
+ray_nivel        0.03
+ray_cercania     0.29

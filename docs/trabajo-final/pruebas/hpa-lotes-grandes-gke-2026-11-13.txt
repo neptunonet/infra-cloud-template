@@ -1,0 +1,39 @@
+# HPA con lotes de 4810 tramos, 5 usuarios, 240 s (GKE, 2 x e2-standard-2)
+t=0s 15:23:11 cpu: 1%/60% actuales=1 listas=1 nodos=2
+t=19s 15:23:30 cpu: 1%/60% actuales=1 listas=1 nodos=2
+t=38s 15:23:49 cpu: 1%/60% actuales=1 listas=1 nodos=2
+t=56s 15:24:07 cpu: 1%/60% actuales=1 listas=1 nodos=2
+t=75s 15:24:26 cpu: 359%/60% actuales=4 listas=1 nodos=2
+t=94s 15:24:45 cpu: 359%/60% actuales=5 listas=5 nodos=2
+t=113s 15:25:04 cpu: 378%/60% actuales=5 listas=5 nodos=2
+t=132s 15:25:23 cpu: 378%/60% actuales=5 listas=5 nodos=2
+t=151s 15:25:42 cpu: 225%/60% actuales=5 listas=5 nodos=2
+t=170s 15:26:01 cpu: 230%/60% actuales=5 listas=5 nodos=2
+t=189s 15:26:20 cpu: 224%/60% actuales=5 listas=5 nodos=2
+t=208s 15:26:39 cpu: 215%/60% actuales=5 listas=5 nodos=2
+t=226s 15:26:57 cpu: 211%/60% actuales=5 listas=5 nodos=2
+t=245s 15:27:16 cpu: 216%/60% actuales=5 listas=5 nodos=2
+t=265s 15:27:36 cpu: 216%/60% actuales=5 listas=5 nodos=2
+t=284s 15:27:55 cpu: 216%/60% actuales=5 listas=5 nodos=2
+t=302s 15:28:13 cpu: 110%/60% actuales=5 listas=5 nodos=2
+t=321s 15:28:32 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=340s 15:28:51 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=359s 15:29:10 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=378s 15:29:29 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=397s 15:29:48 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=416s 15:30:07 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=435s 15:30:26 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=454s 15:30:45 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=473s 15:31:04 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=491s 15:31:22 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=510s 15:31:41 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=529s 15:32:00 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=548s 15:32:19 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=567s 15:32:38 cpu: 1%/60% actuales=5 listas=5 nodos=2
+t=585s 15:32:56 cpu: 1%/60% actuales=5 listas=5 nodos=2
+{"resultado_k6":true,"filas":4810,"vus":5,"duracion_s":247.66,"pedidos":572,"pedidos_s":2.31,"tramos_s":11109,"ms_prom":2088.7,"ms_p50":1860.15,"ms_p90":4113.96,"ms_p95":4648,"ms_p99":5728.3,"ms_max":6231.21,"errores":0,"checks_ok":100}
+8m56s       Normal    SuccessfulRescale         horizontalpodautoscaler/lluvia   New size: 4; reason: cpu resource utilization (percentage of request) above target
+8m51s       Normal    SuccessfulRescale         horizontalpodautoscaler/lluvia   New size: 5; reason: cpu resource utilization (percentage of request) above target
+16s         Normal    SuccessfulRescale         horizontalpodautoscaler/lluvia   New size: 4; reason: cpu resource utilization (percentage of request) below target
+0s          Normal    HpaProfilePerformance     horizontalpodautoscaler/lluvia   The HPA rescaled target based on performance profile
+0s          Normal    SuccessfulRescale         horizontalpodautoscaler/lluvia   New size: 1; reason: cpu resource utilization (percentage of request) below target

@@ -1,0 +1,13 @@
+# H12 — 2026-11-16T13:45:21Z — desde instance-20260401-0133
+healthz conexion: p50 25.8 ms · p95 19331.5 ms · min 25.3 ms
+healthz primer_byte: p50 52.5 ms · p95 19357.9 ms · min 51.3 ms
+healthz total: p50 52.6 ms · p95 19358.0 ms · min 51.4 ms
+healthz codigos HTTP: ['200'] (n=30)
+predict_3 conexion: p50 25.9 ms · p95 27.1 ms · min 25.2 ms
+predict_3 primer_byte: p50 81.6 ms · p95 116.5 ms · min 77.4 ms
+predict_3 total: p50 81.7 ms · p95 116.6 ms · min 77.6 ms
+predict_3 codigos HTTP: ['200'] (n=30)
+# sin clave (tiene que dar 401):
+401
+# k6: 156 tramos, 1 usuario(s), 60 s
+time="2026-11-16T13:46:51Z" level=error msg="stat /scripts/lluvia.js: permission denied"

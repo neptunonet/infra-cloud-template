@@ -4,6 +4,9 @@ Cómo levantar, probar y apagar el servicio `lluvia` desde cero. El detalle de c
 `lluvia/README.md` (código, entrenamiento, API), `helm/charts/lluvia` y `helm/charts/postgres` (charts),
 `observability/lluvia/` (métricas, alertas, dashboard), `loadtest/` (pruebas de carga).
 
+Las fuentes que cita el informe (resultados crudos de las pruebas, gráficos, bitácora de la prueba de concepto y
+capturas) están en [`docs/trabajo-final/`](trabajo-final/README.md).
+
 ```
 VPS (24/7, ARM64)                     GCS (persistente)                    GKE (solo en sesiones)
 cron 07:00 exportar.py  ──────────▶  datasets/AAAA-MM-DD.parquet

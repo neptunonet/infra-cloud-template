@@ -1,0 +1,39 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+
+Estaciones por región:
+                  casos  con_lluvia
+region  estacion                   
+AMBA    SADJ        127          21
+        SADL        170          26
+        SADM        170          20
+        SADP        170          29
+Litoral SAAR        170          33
+        SAAV        170          28
+Mendoza SAMM        146          17
+        SAMR        170          30
+Filas: 57524 -> 25097 tras los filtros; casos: 996, con lluvia: 158, días: 22
+
+== AMBA: 416 casos, 56 con lluvia, 8 días con lluvia ==
+Brier  tabla_app 0.0733 · vista 0.0687 · no_vista 0.0688
+  no_vista menos tabla_app: -0.0045 (IC 90 %: -0.0176 a +0.0085)
+  no_vista menos vista: +0.0001 (IC 90 %: -0.0046 a +0.0054)
+
+== Litoral: 222 casos, 32 con lluvia, 7 días con lluvia ==
+Brier  tabla_app 0.0941 · vista 0.0818 · no_vista 0.0818
+  no_vista menos tabla_app: -0.0123 (IC 90 %: -0.0220 a -0.0028)
+  no_vista menos vista: -0.0001 (IC 90 %: -0.0031 a +0.0032)
+
+== Mendoza: 212 casos, 14 con lluvia, 8 días con lluvia ==
+Brier  tabla_app 0.0654 · vista 0.0631 · no_vista 0.0784
+  no_vista menos tabla_app: +0.0130 (IC 90 %: +0.0004 a +0.0263)
+  no_vista menos vista: +0.0153 (IC 90 %: +0.0066 a +0.0243)
+
+== Las tres regiones juntas: 850 casos, 102 con lluvia, 10 días con lluvia ==
+Brier  tabla_app 0.0768 · vista 0.0708 · no_vista 0.0746
+  no_vista menos tabla_app: -0.0022 (IC 90 %: -0.0084 a +0.0044)
+  no_vista menos vista: +0.0038 (IC 90 %: +0.0005 a +0.0073)
+
+== Córdoba (nunca vista; etiqueta de 10 a 30 km): 111 casos, 14 con lluvia, 6 días con lluvia ==
+Brier  climatologia 0.1158 · tabla_app 0.0758 · no_vista 0.0616
+  no_vista menos climatologia: -0.0542 (IC 90 %: -0.0904 a -0.0185)
+  no_vista menos tabla_app: -0.0142 (IC 90 %: -0.0251 a -0.0043)

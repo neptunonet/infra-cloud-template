@@ -1,0 +1,38 @@
+Filas: 57524 -> 31618 tras los filtros; casos: 1293, con lluvia: 204, días: 22
+
+Prueba: 14 días, 850 casos, 102 con lluvia
+
+modelo           Brier           IC 90 %
+tabla_app       0.0768     0.052 a 0.104
+logistica       0.0708     0.046 a 0.099
+lgbm_chico      0.0734     0.047 a 0.097
+lgbm_defecto    0.0882     0.061 a 0.121
+Brier lgbm_chico menos logistica: +0.0027 (IC 90 %: -0.0011 a +0.0062)
+Brier lgbm_chico menos tabla_app: -0.0033 (IC 90 %: -0.0061 a -0.0008)
+Brier lgbm_defecto menos logistica: +0.0175 (IC 90 %: +0.0101 a +0.0247)
+
+Aviso «posible» (1 voto o más), todos a POD 0.92
+modelo           FAR   CSI  % con aviso
+tabla_app       0.68  0.31        35.0%
+logistica       0.73  0.27        40.4%
+lgbm_chico      0.71  0.29        37.4%
+lgbm_defecto    0.76  0.24        45.4%
+FAR lgbm_chico menos app: +0.020 (IC 90 %: -0.002 a +0.041)
+
+Aviso «probable» (2 votos o más), todos a POD 0.65
+modelo           FAR   CSI  % con aviso
+tabla_app       0.55  0.36        17.5%
+logistica       0.53  0.37        16.8%
+lgbm_chico      0.52  0.38        16.3%
+lgbm_defecto    0.59  0.34        19.1%
+FAR lgbm_chico menos app: -0.034 (IC 90 %: -0.058 a -0.007)
+
+Importancia de las variables en lgbm_chico (% de la ganancia, todos los días):
+votos_media      31.7
+gfs_media_log    20.3
+ifs_media_log    20.1
+wrf_max_log       9.2
+ifs_max_log       5.5
+hora_cos          5.0
+gfs_max_log       4.2
+ray_cercania      1.8
